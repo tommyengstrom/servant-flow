@@ -1,14 +1,18 @@
-module Servant.Flow where
+module Servant.Flow
+    ( module Servant.Flow
+    , defaultOptions
+    , CodeGenOptions (..)
+    ) where
 
 import           Control.Lens
 import           Data.Monoid           ((<>))
 import           Data.Proxy
 import           Data.Text (Text)
 import qualified Data.Text             as T
-import qualified Data.Text.IO          as T
 import           Servant.Flow.CodeGen
 import           Servant.Flow.FlowType
 import           Servant.Foreign
+import Control.Monad.Reader
 
 data LangFlow
 
@@ -20,17 +24,11 @@ getEndpoints :: ( HasForeign LangFlow FlowType api
                => Proxy api -> [Req FlowType]
 getEndpoints = listFromAPI (Proxy @LangFlow) (Proxy @FlowType)
 
-writeFlowForAPI :: ( HasForeign LangFlow FlowType api
-                   , GenerateList FlowType (Foreign FlowType api))
-                => Proxy api -> FilePath -> IO ()
-writeFlowForAPI apiProxy path = T.writeFile path $ generateFlowClient apiProxy
-
-
 generateFlowClient :: ( HasForeign LangFlow FlowType api
                       , GenerateList FlowType (Foreign FlowType api))
-                   => Proxy api -> Text
-generateFlowClient apiProxy = T.intercalate "\n\n"
-                            . fmap mkEndpoint
+                   => Proxy api -> CodeGenOptions -> Text
+generateFlowClient apiProxy opts = T.intercalate "\n\n"
+                            . fmap (flip runReader opts . renderFunction)
                             $ getEndpoints apiProxy
 
 

@@ -11,6 +11,9 @@ import           Network.HTTP.Types    (Method)
 import           Servant.Flow.FlowType
 import           Servant.Foreign
 
+type CodeGenerator = Reader CodeGenOptions
+type Indent = Int
+
 -- | Options for how to generate the API client
 data CodeGenOptions = CodeGenOptions
     { cgRenderFunctionName :: FunctionName -> Text -- ^ Name of endpoint function
@@ -22,24 +25,6 @@ defaultOptions = CodeGenOptions
     { cgRenderFunctionName = camelCase
     , cgIndentSize         = 4
     }
-type CodeGenerator = Reader CodeGenOptions
-
-type Indent = Int
-
-renderArgs :: Indent -> Req FlowType -> CodeGenerator Text
-renderArgs i req = do
-    indent <- getIndentation i
-    let renderedReq = T.intercalate ",\n" (fmap (mappend indent . renderArg) arg)
-        renderedOpt = if null opt
-            then ""
-            else ",\n" <> indent <> "params " <> showFlowType (argsToObject opt)
-
-        arg = getCaptureArgs req
-        opt = getQueryArgs req
-
-    pure $ "\n"
-        <> renderedReq
-        <> renderedOpt
 
 argsToObject :: [Arg FlowType] -> FlowType
 argsToObject = Object . fmap (\(Arg (PathSegment n) t) -> (n, t))
@@ -57,6 +42,8 @@ getCaptureArgs req = catMaybes . fmap getArg $ req ^. reqUrl . path
 getQueryArgs :: Req a -> [Arg a]
 getQueryArgs = fmap (view queryArgName) . view (reqUrl . queryStr)
 
+
+-- | Render javascript client function
 renderFunction :: Req FlowType -> CodeGenerator Text
 renderFunction req = do
     opts <- ask
@@ -68,40 +55,53 @@ renderFunction req = do
         <> "\n" <> indent <> ")"
         <> maybe ": void" showFlowType (req ^. reqReturnType) <> "\n"
         <> renderedBody
+    where
+
+        renderArgs :: Indent -> Req FlowType -> CodeGenerator Text
+        renderArgs i req = do
+            indent <- getIndentation i
+            let renderedReq = T.intercalate ",\n"
+                            $ (indent <> "client: any")
+                            : (fmap (mappend indent . renderArg) arg)
+                renderedOpt = if null opt
+                    then ""
+                    else ",\n" <> indent <> "params " <> showFlowType (argsToObject opt)
+
+                arg = getCaptureArgs req
+                opt = getQueryArgs req
+
+            pure $ "\n"
+                <> renderedReq
+                <> renderedOpt
+
+        renderFunctionBody :: Indent -> Req FlowType -> CodeGenerator Text
+        renderFunctionBody i req = do
+            indent1 <- getIndentation i
+            indent2 <- getIndentation $ i + 1
+            indentLet <- (<> T.replicate 14 " ") <$> getIndentation i
+
+            pure $ T.unlines
+                [ indent1 <> "{"
+                , indent2 <> "let url = [ "
+                    <> T.intercalate ("\n" <> indentLet <> ", ") urlPieces
+                    <> "\n" <> indentLet <> "].join('/')"
+                , indent2 <> "return client" <> axiosMethod
+                              <> "(url" <> ", {params: params});"
+                , indent1 <> "};"
+                ]
+            where
+                axiosMethod = T.cons '.' . T.toLower . decodeUtf8 $ req ^. reqMethod
+                urlPieces   = fmap renderSegment
+                            $ req ^. reqUrl . path
+
+                renderSegment :: Segment a -> Text
+                renderSegment (Segment (Static (PathSegment t)))      = "\"" <> t <> "\""
+                renderSegment (Segment (Cap (Arg (PathSegment n) _))) =
+                    "encodeURIComponent(" <> n <> ")"
 
 getIndentation :: Indent -> CodeGenerator Text
 getIndentation steps = do
     size <- asks cgIndentSize
     pure $ T.replicate (steps * size) " "
-
-renderFunctionBody :: Indent -> Req FlowType -> CodeGenerator Text
-renderFunctionBody i req = do
-    outerIndent <- getIndentation i
-    innerIndent <- getIndentation $ i + 1
-    pure $ T.unlines
-        [ outerIndent <> "{"
-        , innerIndent <> "return axios" <> axiosMethod
-                      <> "(" <> url <> ", {params: params});"
-        , outerIndent <> "};"
-        ]
-    where
-        axiosMethod = T.cons '.' . T.toLower . decodeUtf8 $ req ^. reqMethod
-        url  = T.intercalate " + \"/\" + " $ fmap renderSegment $ req ^. reqUrl . path
-
-        renderSegment :: Segment a -> Text
-        renderSegment (Segment (Static (PathSegment t)))      = "\"" <> t <> "\""
-        renderSegment (Segment (Cap (Arg (PathSegment n) _))) =
-            "encodeURIComponent(" <> n <> ")"
-
-mkEndpoint :: Req FlowType -> Text
-mkEndpoint req = flip runReader defaultOptions
-                $ renderFunction req
-    where
-        pathArgs = catMaybes . fmap getArg $ req ^. reqUrl . path
-        queryArgs = view queryArgName <$> req ^. reqUrl . queryStr
-
-        getArg :: Segment FlowType -> Maybe (Arg FlowType)
-        getArg (Segment (Static _ )) = Nothing
-        getArg (Segment (Cap a))     = Just a
 
 

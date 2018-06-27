@@ -24,7 +24,7 @@ main :: IO ()
 main = hspec $ do
     describe "Generate API client" $ do
         it "Outputs something" $ do
-            let c = generateFlowClient (Proxy @API)
+            let c = generateFlowClient (Proxy @API) defaultOptions
             putStrLn "\n\n"
             putStrLn $ T.unpack c
             putStrLn "\n\n"

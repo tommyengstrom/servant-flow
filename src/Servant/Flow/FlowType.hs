@@ -12,9 +12,9 @@ data FlowType
     deriving (Show, Eq, Ord)
 
 showFlowType :: FlowType -> Text
-showFlowType Any        = ": any"
+showFlowType Any          = ": any"
 showFlowType (Nullable t) = "?" <> showFlowType t
-showFlowType (Object l) = ": { "
-                       <> T.intercalate ", " (fmap (\(n, t) -> n <> showFlowType t) l)
-                       <> " }"
+showFlowType (Object l)   = ": { "
+                         <> T.intercalate ", " (fmap (\(n, t) -> n <> showFlowType t) l)
+                         <> " }"
 

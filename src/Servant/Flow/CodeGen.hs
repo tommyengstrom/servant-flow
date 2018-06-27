@@ -1,6 +1,7 @@
 module Servant.Flow.CodeGen where
 
 import           Control.Lens
+import           Control.Monad.Reader
 import           Data.Maybe
 import           Data.Monoid           ((<>))
 import           Data.Text             (Text)
@@ -8,26 +9,83 @@ import qualified Data.Text             as T
 import           Servant.Flow.FlowType
 import           Servant.Foreign
 
--- data FuncArg = FuncArg Text FlowType
+-- | Options for how to generate the API client
+data CodeGenOptions = CodeGenOptions
+    { cgRenderFunctionName :: FunctionName -> Text -- ^ Name of endpoint funciton
+    , cgIndentSize         :: Int
+    }
 
-renderArg :: FuncArg -> Text
-renderArg = undefined
+defaultOptions :: CodeGenOptions
+defaultOptions = CodeGenOptions
+    { cgRenderFunctionName = camelCase
+    , cgIndentSize         = 4
+    }
+type CodeGenerator = Reader CodeGenOptions
 
-type FuncName = Text
-type FuncArg = Text
+renderArgs :: Indent -> FuncArgs -> CodeGenerator Text
+renderArgs i (FuncArgs req opt) = do
+    indent <- getIndentation i
+    let renderedReq = T.intercalate ",\n" (fmap (mappend indent . renderArg) req)
+        renderedOpt = if null opt
+            then ""
+            else ",\n" <> indent <> "opts : any" --fixme: add the types!
+    pure $ "\n"
+        <> renderedReq
+        <> renderedOpt
+
+renderArg :: Arg FlowType -> Text
+renderArg (Arg (PathSegment name) argType) = name <> " : " <> showFlowType argType
+
+type Indent = Int
 type FuncBody = Text
-type ReturnType = FlowType
+data FuncArgs = FuncArgs
+    { _argsRequired :: [Arg FlowType]
+    , _argsOptional :: [Arg FlowType]
+    } deriving (Show)
 
-renderFunction :: FuncName -> [FuncArg] -> FuncBody -> ReturnType -> Text
-renderFunction name args body ret
-    = "function " <> name <> "\n"
-   <> "  (" <> T.intercalate ",\n  " (fmap renderArg args) <> ") : " <> showFlowType ret <> "\n"
-   <> "  { return "
-   <> "  };"
 
+renderFunction :: FunctionName -> FuncArgs -> FuncBody -> Maybe FlowType
+               -> CodeGenerator Text
+renderFunction name args body ret = do
+    opts <- ask
+    renderedBody <- renderFunctionBody 1 body
+    renderedArgs <- renderArgs 1 args
+    pure $ "function " <> (cgRenderFunctionName opts) name
+        <> "(" <> renderedArgs <> ") : " <> maybe "void" showFlowType ret <> "\n"
+        <> renderedBody
+
+getIndentation :: Indent -> CodeGenerator Text
+getIndentation steps = do
+    size <- asks cgIndentSize
+    pure $ T.replicate (steps * size) " "
+
+renderFunctionBody :: Indent -> FuncBody -> CodeGenerator Text
+renderFunctionBody i _ = do
+        outerIndent <- getIndentation i
+        innerIndent <- getIndentation $ i + 1
+        pure $ T.unlines
+            [ outerIndent <> "{"
+            , innerIndent <> "return axios.get();"
+            , outerIndent <> "};"
+            ]
 
 mkEndpoint :: Req FlowType -> Text
-mkEndpoint req =
+mkEndpoint req = flip runReader defaultOptions
+                $ renderFunction (req ^. reqFuncName)
+                                 (FuncArgs pathArgs queryArgs)
+                                 "" -- undefined
+                                 (req ^. reqReturnType)
+    where
+        pathArgs = catMaybes . fmap getArg $ req ^. reqUrl . path
+        queryArgs = view queryArgName <$> req ^. reqUrl . queryStr
+
+        getArg :: Segment FlowType -> Maybe (Arg FlowType)
+        getArg (Segment (Static _ )) = Nothing
+        getArg (Segment (Cap a))     = Just a
+
+
+mkEndpoint' :: Req FlowType -> Text
+mkEndpoint' req =
     "function " <> reqName <> "(" <> T.intercalate ", " params <> ") : " <> retType
         <> "\n  { return axios." <> method <> "(" <> rPath <>  " + \"?\" + " <> rQuery <> ")"
         <> "\n  }"

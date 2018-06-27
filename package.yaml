@@ -29,6 +29,8 @@ dependencies:
 - text
 - time
 - unordered-containers
+- mtl
+- transformers
 
 default-extensions:
 - FlexibleContexts
@@ -38,6 +40,11 @@ default-extensions:
 - ScopedTypeVariables
 - TypeApplications
 - TypeSynonymInstances
+- TypeOperators
+- DataKinds
+
+ghc-options:
+- -Wall
 
 library:
   source-dirs: src
@@ -64,3 +71,4 @@ tests:
     dependencies:
     - servant-flow
     - servant-server
+    - hspec

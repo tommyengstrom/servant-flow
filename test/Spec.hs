@@ -1,9 +1,24 @@
+
 import Servant.Flow
 import Servant
 import Test.Hspec
+import Data.Text (Text)
+import Data.Proxy
+import qualified Data.Text as T
 
-API = "something" :> Capture "cap" Text :> QueryParam "qparam" Int :> Get '[JSON] Text
+type API = "toUpper"
+        :> Capture "text" Text
+        :> QueryParam "maxChars" Int
+        :> QueryFlag "fromEnd"
+        :> Get '[JSON] Text
+
 
 
 main :: IO ()
-main = putStrLn "Test suite not yet implemented"
+main = hspec $ do
+    describe "Generate API client" $ do
+        it "Outputs something" $ do
+            let c = generateFlowClient (Proxy @API)
+            putStrLn "\n\n"
+            putStrLn $ T.unpack c
+            putStrLn "\n\n"

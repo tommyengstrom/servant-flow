@@ -1,4 +1,3 @@
-
 import Servant.Flow
 import Servant
 import Test.Hspec
@@ -24,7 +23,6 @@ main :: IO ()
 main = hspec $ do
     describe "Generate API client" $ do
         it "Outputs something" $ do
-            let c = generateFlowClient (Proxy @API) defaultOptions
-            putStrLn "\n\n"
-            putStrLn $ T.unpack c
-            putStrLn "\n\n"
+            putStrLn . T.unpack $ T.replicate 80 "-"
+            putStrLn . T.unpack $ renderClientFunction defaultOptions
+            putStrLn . T.unpack $ generateFlowClient (Proxy @API) defaultOptions

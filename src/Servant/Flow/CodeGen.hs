@@ -42,6 +42,20 @@ getCaptureArgs req = catMaybes . fmap getArg $ req ^. reqUrl . path
 getQueryArgs :: Req a -> [Arg a]
 getQueryArgs = fmap (view queryArgName) . view (reqUrl . queryStr)
 
+renderClientFunction :: CodeGenOptions -> Text
+renderClientFunction = runReader genClient
+    where
+        genClient = do
+            indent1 <- getIndentation 1
+            indent2 <- getIndentation 2
+            pure $ T.unlines
+                [ "function createClient(token: any, baseURL: string)"
+                , indent1 <> "{"
+                , indent2 <> "return axios.create(" <> opts <> ");"
+                , indent1 <> "};"
+                ]
+        opts = "{headers: {'Authorization': token}, baseURL: baseURL})"
+
 
 -- | Render javascript client function
 renderFunction :: Req FlowType -> CodeGenerator Text

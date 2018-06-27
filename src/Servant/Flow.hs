@@ -2,6 +2,7 @@ module Servant.Flow
     ( module Servant.Flow
     , defaultOptions
     , CodeGenOptions (..)
+    , renderClientFunction
     ) where
 
 import           Control.Lens

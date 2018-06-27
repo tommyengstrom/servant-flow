@@ -1,10 +1,10 @@
 name:                servant-flow
 version:             0.1.0.0
-github:              "tommyengstrom/servant-flow"
+github:              "henrylabs/servant-flow"
 license:             BSD3
 author:              "Tommy Engström"
-maintainer:          "tommy@tommyengstrom.com"
-copyright:           "2018 Tommy Engström"
+maintainer:          "tommy@hihenry.com"
+copyright:           "2018 Henry Labs"
 
 extra-source-files:
 - README.md
@@ -31,6 +31,7 @@ dependencies:
 - unordered-containers
 - mtl
 - transformers
+- http-types
 
 default-extensions:
 - FlexibleContexts
@@ -42,6 +43,7 @@ default-extensions:
 - TypeSynonymInstances
 - TypeOperators
 - DataKinds
+- DeriveGeneric
 
 ghc-options:
 - -Wall

@@ -5,12 +5,18 @@ import Test.Hspec
 import Data.Text (Text)
 import Data.Proxy
 import qualified Data.Text as T
+import GHC.Generics (Generic)
+import Network.HTTP.Types
 
-type API = "toUpper"
-        :> Capture "text" Text
+data Transformation = ToUpper | ToLower
+    deriving (Show, Generic)
+
+type API = "changeCase"
+        :> Capture "transformation" Transformation
         :> QueryParam "maxChars" Int
         :> QueryFlag "fromEnd"
         :> Get '[JSON] Text
+    :<|> "user" :> ReqBody '[JSON] Text :> Post '[JSON] Text
 
 
 

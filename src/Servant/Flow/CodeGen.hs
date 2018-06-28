@@ -2,6 +2,7 @@ module Servant.Flow.CodeGen where
 
 import           Control.Lens
 import           Control.Monad.Reader
+import           Control.Monad.RWS
 import           Data.Maybe
 import           Data.Monoid           ((<>))
 import           Data.Text             (Text)
@@ -13,6 +14,14 @@ import           Servant.Foreign
 
 type CodeGenerator = Reader CodeGenOptions
 type Indent = Int
+
+type CodeGen = RWS CodeGenOptions Text Indent
+
+runCodeGen' :: CodeGen a -> CodeGenOptions -> (a, Indent, Text)
+runCodeGen' g opts = runRWS g opts 0
+
+runCodeGen :: CodeGen a -> CodeGenOptions -> Text
+runCodeGen g = view _3 . runCodeGen' g
 
 -- | Options for how to generate the API client
 data CodeGenOptions = CodeGenOptions
@@ -26,11 +35,42 @@ defaultOptions = CodeGenOptions
     , cgIndentSize         = 4
     }
 
+-- | Print indented
+indent :: Text -> CodeGen ()
+indent t = do
+    indentSize <- asks cgIndentSize
+    indentLevel <- get
+    tell $ T.replicate (indentSize * indentLevel) " " <> t
+
+-- | Print indented line
+line :: Text -> CodeGen ()
+line t = do
+    tell "\n"
+    indent t
+
+-- | Indent the block one more step
+indented :: CodeGen a -> CodeGen a
+indented g = do
+    indentMore
+    a <- g
+    indentLess
+    pure a
+
+indentMore :: CodeGen ()
+indentMore = modify (+1)
+
+indentLess :: CodeGen ()
+indentLess = modify (\i -> max (i -1) 0)
+
+
 argsToObject :: [Arg FlowType] -> FlowType
 argsToObject = Object . fmap (\(Arg (PathSegment n) t) -> (n, t))
 
 renderArg :: Arg FlowType -> Text
 renderArg (Arg (PathSegment name) argType) = name <> showFlowTypeInComment argType
+
+renderArgNoComment :: Arg FlowType -> Text
+renderArgNoComment (Arg (PathSegment name) argType) = name <> showFlowType argType
 
 getCaptureArgs :: Req a -> [Arg a]
 getCaptureArgs req = catMaybes . fmap getArg $ req ^. reqUrl . path
@@ -42,97 +82,103 @@ getCaptureArgs req = catMaybes . fmap getArg $ req ^. reqUrl . path
 getQueryArgs :: Req a -> [Arg a]
 getQueryArgs = fmap (view queryArgName) . view (reqUrl . queryStr)
 
-renderClientFunction :: CodeGenOptions -> Text
-renderClientFunction = runReader genClient
+parens :: CodeGen a -> CodeGen a
+parens g = do
+    tell "("
+    indented $ do
+        a <- g
+        line ")"
+        pure a
+
+block :: CodeGen a -> CodeGen a
+block g = do
+    tell "{"
+    indented $ do
+        a <- g
+        line "}"
+        pure a
+
+renderClientFunction :: CodeGen ()
+renderClientFunction = do
+    line "module.exports.createClient = createClient"
+    line "function createClient"
+    parens $ do
+        line "token/* : string */,"
+        line "baseURL/* : string */"
+    block $ do
+        line "return axios.create("
+        block $ do
+            line "headers: "
+            block $ line "Authorization: token"
+            tell ","
+            line "baseURL: baseURL"
+
+getFuncName :: Req FlowType -> CodeGen Text
+getFuncName req = do
+    f <- asks cgRenderFunctionName
+    pure . f $ req ^. reqFuncName
+
+renderFun :: Req FlowType -> CodeGen ()
+renderFun req = do
+    funName <- getFuncName req
+    line $ "function " <> funName
+    parens renderAllArgs
+    block renderBody
+    line $ "module.exports." <> funName <> " = " <> funName
     where
-        genClient = do
-            indent1 <- getIndentation 1
-            indent2 <- getIndentation 2
-            pure $ T.unlines
-                [ "function createClient(token/* : string */, baseURL/* : string */)"
-                , indent1 <> "{"
-                , indent2 <> "return axios.create(" <> opts <> ");"
-                , indent1 <> "};"
-                ]
-        opts = "{headers: {Authorization: token}, baseURL: baseURL}"
+        -- Captures and request body
+        args :: [Arg FlowType]
+        args = (getCaptureArgs req)
+            <> maybe [] (\t -> [Arg (PathSegment "data") t]) (req ^. reqBody)
 
+        qParams :: [Arg FlowType]
+        qParams = getQueryArgs req
 
--- | Render javascript client function
-renderFunction :: Req FlowType -> CodeGenerator Text
-renderFunction req = do
-    opts <- ask
-    renderedBody <- renderFunctionBody 1 req
-    renderedArgs <- renderArgs 1 req
-    indent <- getIndentation 1
-    let funName = cgRenderFunctionName opts (req ^. reqFuncName)
-    pure $ "module.exports." <> funName <> " = " <> funName <> "\n"
-        <> "function " <> funName
-        <> "(" <> renderedArgs
-        <> "\n" <> indent <> ")"
-        <> maybe ": void" showFlowTypeInComment (req ^. reqReturnType) <> "\n"
-        <> renderedBody
-    where
+        renderAllArgs :: CodeGen ()
+        renderAllArgs  = do
+            line "client /* : any */,"
+            renderArgs True args
+            unless (null qParams) $ do
+                unless (null args) $ tell ","
+                line "opts /* : "
+                block $ renderArgs False qParams
+                tell " */"
 
+        renderArgs :: Bool -> [Arg FlowType] -> CodeGen ()
+        renderArgs _ []     = pure ()
+        renderArgs inComment (a:as) = do
+            if inComment
+                then line $ renderArg a
+                else line $ renderArgNoComment a
+            unless (null as) $ tell ","
+            renderArgs inComment as
 
-        renderArgs :: Indent -> Req FlowType -> CodeGenerator Text
-        renderArgs i req = do
-            indent <- getIndentation i
-            let renderedReq = T.intercalate ",\n"
-                            $ (indent <> "client/* : any */")
-                            : (fmap (mappend indent . renderArg) arg)
-                renderedOpt = case (getQueryArgs req, req ^. reqBody) of
-                    ([] , Nothing) -> ""
-                    (opt, Nothing) -> ",\n" <> indent <> "params "
-                                   <> showFlowTypeInComment
-                                        (argsToObject $ fmap (over argType Nullable) opt)
-                    ([] , Just b) -> ",\n" <> indent <> "data " <> showFlowTypeInComment b
-                    (opt, Just b) -> ",\n" <> indent <> "data " <> showFlowTypeInComment b
-                                  <> ",\n" <> indent <> "params "
-                                  <> showFlowTypeInComment
-                                       (argsToObject $ fmap (over argType Nullable) opt)
-                arg = getCaptureArgs req
-                opt = getQueryArgs req
+        renderBody :: CodeGen ()
+        renderBody = do
+            line "return client"
+            parens . block $ do
+                line "url: ["
+                indented $ do
+                    renderUrl $ req ^. reqUrl . path
+                    line "].join('/'),"
+                line $ "method: '" <> (T.toLower . decodeUtf8 $ req ^. reqMethod) <> "'"
+                unless (null qParams) $ do
+                    tell ","
+                    line "params: opts"
+                unless (null $ req ^. reqBody) $ do
+                    tell ","
+                    line "data: data"
 
-            pure $ "\n"
-                <> renderedReq
-                <> renderedOpt
+            pure ()
 
-        renderFunctionBody :: Indent -> Req FlowType -> CodeGenerator Text
-        renderFunctionBody i req = do
-            indent1 <- getIndentation i
-            indent2 <- getIndentation $ i + 1
-            indent3 <- getIndentation $ i + 2
-            indentLet <- (<> T.replicate 14 " ") <$> getIndentation i
-
-            let opts :: Text
-                opts = T.intercalate ",\n" . fmap (indent3 <>) $ catMaybes
-                    [ Just $ "url: url"
-                    , Just $ "method: '" <> axiosMethod <> "'"
-                    , fmap (const "data: data") $ req ^. reqBody
-                    , fmap (const "params: params") . listToMaybe $ getQueryArgs req
-                    ]
-                axiosMethod = T.toLower . decodeUtf8 $ req ^. reqMethod
-                urlPieces   = fmap renderSegment
-                            $ req ^. reqUrl . path
-
-                renderSegment :: Segment a -> Text
-                renderSegment (Segment (Static (PathSegment t)))      = "\"" <> t <> "\""
-                renderSegment (Segment (Cap (Arg (PathSegment n) _))) =
-                    "encodeURIComponent(" <> n <> ")"
-
-            pure $ T.unlines
-                [ indent1 <> "{"
-                , indent2 <> "let url = [ "
-                    <> T.intercalate ("\n" <> indentLet <> ", ") urlPieces
-                    <> "\n" <> indentLet <> "].join('/')"
-                , indent2 <> "return client({\n" <> opts
-                , indent3 <> "})"
-                , indent1 <> "};"
-                ]
-
-getIndentation :: Indent -> CodeGenerator Text
-getIndentation steps = do
-    size <- asks cgIndentSize
-    pure $ T.replicate (steps * size) " "
-
+        renderUrl :: [Segment FlowType] -> CodeGen ()
+        renderUrl []     = pure ()
+        renderUrl (Segment (Cap (Arg (PathSegment n) _)):ss) = do
+            line $ "encodeURIComponent(" <> n <> ")"
+            unless (null ss) $ tell ","
+            renderUrl ss
+        renderUrl (Segment (Static (PathSegment s)):ss) = do
+            line $ "'" <> s <> "'"
+            unless (null ss) $ tell ","
+            renderUrl ss
 

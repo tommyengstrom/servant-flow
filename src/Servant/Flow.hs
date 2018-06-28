@@ -29,7 +29,7 @@ generateFlowClient :: ( HasForeign LangFlow FlowType api
                       , GenerateList FlowType (Foreign FlowType api))
                    => Proxy api -> CodeGenOptions -> Text
 generateFlowClient apiProxy opts = T.intercalate "\n\n"
-                            . fmap (flip runReader opts . renderFunction)
+                            . fmap (flip runCodeGen opts . renderFun)
                             $ getEndpoints apiProxy
 
 

@@ -30,7 +30,7 @@ argsToObject :: [Arg FlowType] -> FlowType
 argsToObject = Object . fmap (\(Arg (PathSegment n) t) -> (n, t))
 
 renderArg :: Arg FlowType -> Text
-renderArg (Arg (PathSegment name) argType) = name <> showFlowType argType
+renderArg (Arg (PathSegment name) argType) = name <> showFlowTypeInComment argType
 
 getCaptureArgs :: Req a -> [Arg a]
 getCaptureArgs req = catMaybes . fmap getArg $ req ^. reqUrl . path
@@ -49,12 +49,12 @@ renderClientFunction = runReader genClient
             indent1 <- getIndentation 1
             indent2 <- getIndentation 2
             pure $ T.unlines
-                [ "function createClient(token: any, baseURL: string)"
+                [ "function createClient(token/* : string */, baseURL/* : string */)"
                 , indent1 <> "{"
                 , indent2 <> "return axios.create(" <> opts <> ");"
                 , indent1 <> "};"
                 ]
-        opts = "{headers: {'Authorization': token}, baseURL: baseURL})"
+        opts = "{headers: {Authorization: token}, baseURL: baseURL})"
 
 
 -- | Render javascript client function
@@ -67,7 +67,7 @@ renderFunction req = do
     pure $ "function " <> cgRenderFunctionName opts (req ^. reqFuncName)
         <> "(" <> renderedArgs
         <> "\n" <> indent <> ")"
-        <> maybe ": void" showFlowType (req ^. reqReturnType) <> "\n"
+        <> maybe ": void" showFlowTypeInComment (req ^. reqReturnType) <> "\n"
         <> renderedBody
     where
 
@@ -75,11 +75,12 @@ renderFunction req = do
         renderArgs i req = do
             indent <- getIndentation i
             let renderedReq = T.intercalate ",\n"
-                            $ (indent <> "client: any")
+                            $ (indent <> "client/* : any */")
                             : (fmap (mappend indent . renderArg) arg)
                 renderedOpt = if null opt
                     then ""
-                    else ",\n" <> indent <> "params " <> showFlowType (argsToObject opt)
+                    else ",\n" <> indent <> "params " <> showFlowTypeInComment
+                            (argsToObject $ fmap (over argType Nullable) opt)
 
                 arg = getCaptureArgs req
                 opt = getQueryArgs req
@@ -100,7 +101,7 @@ renderFunction req = do
                     <> T.intercalate ("\n" <> indentLet <> ", ") urlPieces
                     <> "\n" <> indentLet <> "].join('/')"
                 , indent2 <> "return client" <> axiosMethod
-                              <> "(url" <> ", {params: params});"
+                              <> "(url" <> ", {params: params});" -- only render if there are params and render data if there is a request body!
                 , indent1 <> "};"
                 ]
             where

@@ -11,6 +11,9 @@ data FlowType
     | Nullable FlowType
     deriving (Show, Eq, Ord)
 
+showFlowTypeInComment :: FlowType -> Text
+showFlowTypeInComment t = "/* " <> showFlowType t <> " */"
+
 showFlowType :: FlowType -> Text
 showFlowType Any          = ": any"
 showFlowType (Nullable t) = "?" <> showFlowType t

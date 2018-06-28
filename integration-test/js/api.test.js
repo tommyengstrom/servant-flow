@@ -17,6 +17,6 @@ test('postUser', () => api.postUser(client, '"olle"')
 test('getChangeCaseByTransformation', () => api.getChangeCaseByTransformation(client, 'ToUpper', {maxChars: 4, fromEnd: true})
     .then(response => {
         expect(response.status).toBe(200)
-        expect(response.data).toBe("oh yeah!")
+        expect(response.data).toBe("(ToUpper,Just 4,True)")
     }))
 

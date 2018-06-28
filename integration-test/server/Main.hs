@@ -14,7 +14,7 @@ server = changeCase
     :<|> user
 
 changeCase :: Transformation -> Maybe Int -> Bool -> Handler Text
-changeCase _ _ _ = pure "oh yeah!"
+changeCase a b c = pure . T.pack $ show (a, b, c)
 
 user :: Text -> Handler Text
 user _ = pure "like a glove!"

@@ -4,10 +4,21 @@ import Servant.Flow
 import Servant
 import Data.Text (Text)
 import GHC.Generics (Generic)
-
+import qualified Data.Text as T
+import Data.Monoid
 
 data Transformation = ToUpper | ToLower
     deriving (Show, Generic)
+
+instance FromHttpApiData Transformation where
+    parseUrlPiece "ToUpper" = Right ToUpper
+    parseUrlPiece "ToLower" = Right ToLower
+    parseUrlPiece a         = Left $ "Not a valid transformation: " <> a
+
+instance ToHttpApiData Transformation where
+    toUrlPiece ToUpper = "ToUpper"
+    toUrlPiece ToLower = "ToLower"
+
 
 type API = "changeCase"
         :> Capture "transformation" Transformation

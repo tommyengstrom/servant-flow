@@ -77,11 +77,16 @@ renderFunction req = do
             let renderedReq = T.intercalate ",\n"
                             $ (indent <> "client/* : any */")
                             : (fmap (mappend indent . renderArg) arg)
-                renderedOpt = if null opt
-                    then ""
-                    else ",\n" <> indent <> "params " <> showFlowTypeInComment
-                            (argsToObject $ fmap (over argType Nullable) opt)
-
+                renderedOpt = case (getQueryArgs req, req ^. reqBody) of
+                    ([] , Nothing) -> ""
+                    (opt, Nothing) -> ",\n" <> indent <> "params "
+                                   <> showFlowTypeInComment
+                                        (argsToObject $ fmap (over argType Nullable) opt)
+                    ([] , Just b) -> ",\n" <> indent <> "data " <> showFlowTypeInComment b
+                    (opt, Just b) -> ",\n" <> indent <> "data " <> showFlowTypeInComment b
+                                  <> ",\n" <> indent <> "params "
+                                  <> showFlowTypeInComment
+                                       (argsToObject $ fmap (over argType Nullable) opt)
                 arg = getCaptureArgs req
                 opt = getQueryArgs req
 
@@ -101,10 +106,16 @@ renderFunction req = do
                     <> T.intercalate ("\n" <> indentLet <> ", ") urlPieces
                     <> "\n" <> indentLet <> "].join('/')"
                 , indent2 <> "return client" <> axiosMethod
-                              <> "(url" <> ", {params: params});" -- only render if there are params and render data if there is a request body!
+                              <> "(url" <> opts <> ");"
                 , indent1 <> "};"
                 ]
             where
+                opts :: Text
+                opts = case (getQueryArgs req, req ^. reqBody) of
+                    ([], Nothing) -> ""
+                    (_ , Nothing) -> ", {params: params}"
+                    ([] , Just _) -> ", {data: data}"
+                    (_  , Just _) -> ", {params: params, data: data}"
                 axiosMethod = T.cons '.' . T.toLower . decodeUtf8 $ req ^. reqMethod
                 urlPieces   = fmap renderSegment
                             $ req ^. reqUrl . path

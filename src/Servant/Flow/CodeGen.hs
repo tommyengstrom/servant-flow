@@ -54,7 +54,7 @@ renderClientFunction = runReader genClient
                 , indent2 <> "return axios.create(" <> opts <> ");"
                 , indent1 <> "};"
                 ]
-        opts = "{headers: {Authorization: token}, baseURL: baseURL})"
+        opts = "{headers: {Authorization: token}, baseURL: baseURL}"
 
 
 -- | Render javascript client function
@@ -98,25 +98,17 @@ renderFunction req = do
         renderFunctionBody i req = do
             indent1 <- getIndentation i
             indent2 <- getIndentation $ i + 1
+            indent3 <- getIndentation $ i + 2
             indentLet <- (<> T.replicate 14 " ") <$> getIndentation i
 
-            pure $ T.unlines
-                [ indent1 <> "{"
-                , indent2 <> "let url = [ "
-                    <> T.intercalate ("\n" <> indentLet <> ", ") urlPieces
-                    <> "\n" <> indentLet <> "].join('/')"
-                , indent2 <> "return client" <> axiosMethod
-                              <> "(url" <> opts <> ");"
-                , indent1 <> "};"
-                ]
-            where
-                opts :: Text
-                opts = case (getQueryArgs req, req ^. reqBody) of
-                    ([], Nothing) -> ""
-                    (_ , Nothing) -> ", {params: params}"
-                    ([] , Just _) -> ", {data: data}"
-                    (_  , Just _) -> ", {params: params, data: data}"
-                axiosMethod = T.cons '.' . T.toLower . decodeUtf8 $ req ^. reqMethod
+            let opts :: Text
+                opts = T.intercalate ",\n" . fmap (indent3 <>) $ catMaybes
+                    [ Just $ "url: url"
+                    , Just $ "method: '" <> axiosMethod <> "'"
+                    , fmap (const "data: data") $ req ^. reqBody
+                    , fmap (const "params: params") . listToMaybe $ getQueryArgs req
+                    ]
+                axiosMethod = T.toLower . decodeUtf8 $ req ^. reqMethod
                 urlPieces   = fmap renderSegment
                             $ req ^. reqUrl . path
 
@@ -124,6 +116,16 @@ renderFunction req = do
                 renderSegment (Segment (Static (PathSegment t)))      = "\"" <> t <> "\""
                 renderSegment (Segment (Cap (Arg (PathSegment n) _))) =
                     "encodeURIComponent(" <> n <> ")"
+
+            pure $ T.unlines
+                [ indent1 <> "{"
+                , indent2 <> "let url = [ "
+                    <> T.intercalate ("\n" <> indentLet <> ", ") urlPieces
+                    <> "\n" <> indentLet <> "].join('/')"
+                , indent2 <> "return client({\n" <> opts
+                , indent3 <> "})"
+                , indent1 <> "};"
+                ]
 
 getIndentation :: Indent -> CodeGenerator Text
 getIndentation steps = do

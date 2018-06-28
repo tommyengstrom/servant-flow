@@ -44,6 +44,8 @@ executables:
     - integration-test
     - warp
     - wai
+    - wai-extra
+    - wai-cors
 
   code-generator:
     main:                Main.hs

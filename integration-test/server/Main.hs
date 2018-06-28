@@ -6,6 +6,8 @@ import           Servant
 import           TestAPI
 import Network.Wai
 import Network.Wai.Handler.Warp
+import Network.Wai.Middleware.RequestLogger (logStdoutDev)
+import Network.Wai.Middleware.Cors
 
 server :: Server API
 server = changeCase
@@ -22,5 +24,5 @@ app :: Application
 app = serve (Proxy @API) server
 
 main :: IO ()
-main = run 8080 app
+main = run 8080 . simpleCors $ logStdoutDev app
 

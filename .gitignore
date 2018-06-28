@@ -3,3 +3,4 @@ servant-flow.cabal
 *~
 ctags
 integration-test.cabal
+node_modules

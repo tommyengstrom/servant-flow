@@ -1,0 +1,54 @@
+name:                integration-test
+version:             0.1.0.0
+github:              "henrylabs/servant-flow"
+license:             BSD3
+author:              "Tommy Engström"
+maintainer:          "tommy@hihenry.com"
+copyright:           "2018 Henry Labs"
+
+dependencies:
+- base >= 4.7 && < 5
+- servant-flow
+- servant-server
+- lens
+- containers
+- unordered-containers
+- text
+- time
+
+default-extensions:
+- FlexibleContexts
+- FlexibleInstances
+- MultiParamTypeClasses
+- OverloadedStrings
+- ScopedTypeVariables
+- TypeApplications
+- TypeSynonymInstances
+- TypeOperators
+- DataKinds
+- DeriveGeneric
+
+library:
+  source-dirs: src
+
+executables:
+  server:
+    main:                Main.hs
+    source-dirs:         server
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - integration-test
+
+  code-generator:
+    main:                Main.hs
+    source-dirs:         code-generator
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - integration-test
+

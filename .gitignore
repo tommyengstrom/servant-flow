@@ -1,3 +1,5 @@
 .stack-work/
 servant-flow.cabal
 *~
+ctags
+integration-test.cabal

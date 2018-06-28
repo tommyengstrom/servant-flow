@@ -1,0 +1,13 @@
+#! /usr/bin/env bash
+
+cd integration-test
+stack clean
+stack build --fast
+stack exec code-generator -- js/api.js
+stack exec server &
+pid=$!
+cd js
+npm install
+npm test
+kill $pid
+

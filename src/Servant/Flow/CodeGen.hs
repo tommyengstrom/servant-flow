@@ -64,12 +64,15 @@ renderFunction req = do
     renderedBody <- renderFunctionBody 1 req
     renderedArgs <- renderArgs 1 req
     indent <- getIndentation 1
-    pure $ "function " <> cgRenderFunctionName opts (req ^. reqFuncName)
+    let funName = cgRenderFunctionName opts (req ^. reqFuncName)
+    pure $ "module.exports." <> funName <> " = " <> funName <> "\n"
+        <> "function " <> funName
         <> "(" <> renderedArgs
         <> "\n" <> indent <> ")"
         <> maybe ": void" showFlowTypeInComment (req ^. reqReturnType) <> "\n"
         <> renderedBody
     where
+
 
         renderArgs :: Indent -> Req FlowType -> CodeGenerator Text
         renderArgs i req = do

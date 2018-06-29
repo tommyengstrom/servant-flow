@@ -104,8 +104,8 @@ renderClientFunction = do
         line "token/* : string */,"
         line "baseURL/* : string */"
     block $ do
-        line "return axios.create("
-        block $ do
+        line "return axios.create"
+        parens . block $ do
             line "headers: "
             block $ line "Authorization: token"
             tell ","

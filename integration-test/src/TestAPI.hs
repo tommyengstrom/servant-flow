@@ -1,10 +1,8 @@
 module TestAPI where
 
-import Servant.Flow
 import Servant
 import Data.Text (Text)
 import GHC.Generics (Generic)
-import qualified Data.Text as T
 import Data.Monoid
 
 data Transformation = ToUpper | ToLower

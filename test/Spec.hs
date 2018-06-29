@@ -3,10 +3,8 @@ import Servant.Flow.CodeGen
 import Servant
 import Test.Hspec
 import Data.Text (Text)
-import Data.Proxy
 import qualified Data.Text as T
 import GHC.Generics (Generic)
-import Network.HTTP.Types
 
 data Transformation = ToUpper | ToLower
     deriving (Show, Generic)

@@ -1,6 +1,6 @@
 module Servant.Flow.FlowType where
 
-import qualified Data.Map    as M
+-- import qualified Data.Map    as M
 import           Data.Monoid ((<>))
 import           Data.Text   (Text)
 import qualified Data.Text   as T

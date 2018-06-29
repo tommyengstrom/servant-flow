@@ -8,7 +8,6 @@ import           Data.Monoid           ((<>))
 import           Data.Text             (Text)
 import qualified Data.Text             as T
 import           Data.Text.Encoding    (decodeUtf8)
-import           Network.HTTP.Types    (Method)
 import           Servant.Flow.FlowType
 import           Servant.Foreign
 
@@ -67,10 +66,10 @@ argsToObject :: [Arg FlowType] -> FlowType
 argsToObject = Object . fmap (\(Arg (PathSegment n) t) -> (n, t))
 
 renderArg :: Arg FlowType -> Text
-renderArg (Arg (PathSegment name) argType) = name <> showFlowTypeInComment argType
+renderArg (Arg (PathSegment name) t) = name <> showFlowTypeInComment t
 
 renderArgNoComment :: Arg FlowType -> Text
-renderArgNoComment (Arg (PathSegment name) argType) = name <> showFlowType argType
+renderArgNoComment (Arg (PathSegment name) t) = name <> showFlowType t
 
 getCaptureArgs :: Req a -> [Arg a]
 getCaptureArgs req = catMaybes . fmap getArg $ req ^. reqUrl . path
@@ -100,7 +99,6 @@ block g = do
 
 renderClientFunction :: CodeGen ()
 renderClientFunction = do
-    line "module.exports.createClient = createClient"
     line "function createClient"
     parens $ do
         line "token/* : string */,"
@@ -112,6 +110,7 @@ renderClientFunction = do
             block $ line "Authorization: token"
             tell ","
             line "baseURL: baseURL"
+    line "module.exports.createClient = createClient"
 
 getFuncName :: Req FlowType -> CodeGen Text
 getFuncName req = do

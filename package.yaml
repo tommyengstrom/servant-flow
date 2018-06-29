@@ -46,7 +46,7 @@ default-extensions:
 - DeriveGeneric
 
 ghc-options:
-- -Wall
+- -Wall -Werror
 
 library:
   source-dirs: src

@@ -5,15 +5,12 @@ module Servant.Flow
     , renderClientFunction
     ) where
 
-import           Control.Lens
-import           Data.Monoid           ((<>))
 import           Data.Proxy
 import           Data.Text (Text)
 import qualified Data.Text             as T
 import           Servant.Flow.CodeGen
 import           Servant.Flow.FlowType
 import           Servant.Foreign
-import Control.Monad.Reader
 
 data LangFlow
 
@@ -32,4 +29,5 @@ generateFlowClient apiProxy opts = T.intercalate "\n\n"
                             . fmap (flip runCodeGen opts . renderFun)
                             $ getEndpoints apiProxy
 
-
+generateClientFunction :: CodeGenOptions -> Text
+generateClientFunction = runCodeGen renderClientFunction

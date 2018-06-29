@@ -32,6 +32,9 @@ default-extensions:
 library:
   source-dirs: src
 
+ghc-options:
+- -Wall -Werror
+
 executables:
   server:
     main:                Main.hs

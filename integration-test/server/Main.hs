@@ -4,7 +4,6 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 import           Servant
 import           TestAPI
-import Network.Wai
 import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import Network.Wai.Middleware.Cors

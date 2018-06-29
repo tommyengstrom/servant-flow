@@ -1,7 +1,6 @@
 module Main where
 
 import           Data.Proxy
-import qualified Data.Text    as T
 import qualified Data.Text.IO as T
 import           Servant.Flow
 import           TestAPI
@@ -13,8 +12,8 @@ main = do
     args <- getArgs
     path <- case args of
         [p] -> pure p
-        a   -> error "Must be called with output path"
-    let clientCode = renderClientFunction defaultOptions
+        _   -> error "Must be called with output path"
+    let clientCode = generateClientFunction defaultOptions
                   <> "\n\n"
                   <> generateFlowClient (Proxy @API) defaultOptions
     T.writeFile path clientCode

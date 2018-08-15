@@ -8,10 +8,7 @@ import           Servant.Flow.FlowType
 
 
 data Transformation = ToUpper | ToLower
-    deriving (Show, Generic, ToJSON)
-
-instance FlowTyped Transformation where
-    flowType _ = primString
+    deriving (Show, Generic, ToJSON, FlowTyped)
 
 instance FromHttpApiData Transformation where
     parseUrlPiece "ToUpper" = Right ToUpper

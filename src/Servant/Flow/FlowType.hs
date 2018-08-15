@@ -2,6 +2,8 @@
 
 module Servant.Flow.FlowType where
 
+import           Data.Aeson            (Options (..), defaultOptions)
+import           Data.Bifunctor        (first)
 import           Data.Functor.Foldable
 import           Data.Monoid           ((<>))
 import           Data.Proxy
@@ -16,7 +18,7 @@ class FlowTyped a where
 
     default
         flowType :: (Generic a, GFlowTyped (Rep a)) => Proxy a -> FlowType
-    flowType _ = gFlowType (from (undefined :: a))
+    flowType _ = gFlowType defaultOptions (from (undefined :: a))
 
 -- Primative instances
 instance FlowTyped Int where
@@ -33,29 +35,32 @@ instance FlowTyped a => FlowTyped (Maybe a) where
 
 -- Generic instances
 class GFlowTyped f where
-    gFlowType :: f x -> FlowType
+    gFlowType :: Options -> f x -> FlowType
 
 -- Single-constructor multi-field records
 instance (GFlowRecordFields f, GFlowRecordFields g)
     => GFlowTyped (D1 m1 (C1 m2 (f :*: g))) where
-        gFlowType _ = Fix . ExactObject $ recordFields (undefined :: (f :*: g) ())
+        gFlowType opts _
+            = Fix . ExactObject
+            . fmap (first $ fromString . (fieldLabelModifier opts))
+            $ recordFields (undefined :: (f :*: g) ())
 
 -- Simple sum types
 instance GSimpleSum (f :+: g) => GFlowTyped (D1 m (f :+: g)) where
-    gFlowType _ = Fix . Sum . fmap (Fix . Literal . LitString) $
-        simpleSumOptions (undefined :: (f :+: g) ())
+    gFlowType opts _ = Fix . Sum . fmap (Fix . Literal . LitString) $
+        simpleSumOptions opts (undefined :: (f :+: g) ())
 
 -- Use an instance that already exists
 instance FlowTyped a => GFlowTyped (K1 i a) where
-    gFlowType _ = flowType (Proxy @a)
+    gFlowType _ _ = flowType (Proxy @a)
 
 -- Record product type helper class
 class GFlowRecordFields f where
-    recordFields :: f x -> [(Text, FlowType)]
+    recordFields :: f x -> [(String, FlowType)]
 
 instance (FlowTyped a, Selector s) => GFlowRecordFields (S1 s (K1 R a)) where
     recordFields _ =
-        [(fromString $ selName (undefined :: S1 s (K1 R a) ()) , flowType (Proxy @a))]
+        [(selName (undefined :: S1 s (K1 R a) ()) , flowType (Proxy @a))]
 
 instance (GFlowRecordFields f, GFlowRecordFields g) => GFlowRecordFields (f :*: g) where
     recordFields _ = recordFields (undefined :: f ()) <> recordFields (undefined :: g ())
@@ -63,14 +68,19 @@ instance (GFlowRecordFields f, GFlowRecordFields g) => GFlowRecordFields (f :*: 
 
 -- Simple sum type helper class
 class GSimpleSum f where
-    simpleSumOptions :: f x -> [Text]
+    simpleSumOptions :: Options -> f x -> [Text]
 
 instance Constructor meta => GSimpleSum (M1 C meta U1) where
-    simpleSumOptions _ = pure . fromString $ conName (undefined :: C1 meta U1 ())
+    simpleSumOptions opts _
+        = pure
+        . fromString
+        . constructorTagModifier opts
+        $ conName (undefined :: C1 meta U1 ())
 
 instance (GSimpleSum f, GSimpleSum g) => GSimpleSum (f :+: g) where
-    simpleSumOptions _ =
-        simpleSumOptions (undefined :: f ()) <> simpleSumOptions (undefined :: g ())
+    simpleSumOptions opts _ =
+        simpleSumOptions opts (undefined :: f ()) <>
+        simpleSumOptions opts (undefined :: g ())
 
 
 data PrimType

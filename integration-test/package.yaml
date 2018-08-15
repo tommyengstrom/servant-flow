@@ -17,6 +17,7 @@ dependencies:
 - time
 - mtl
 - aeson
+- recursion-schemes
 
 default-extensions:
 - FlexibleContexts

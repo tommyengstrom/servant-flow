@@ -33,6 +33,7 @@ dependencies:
 - mtl
 - transformers
 - http-types
+- recursion-schemes
 
 default-extensions:
 - FlexibleContexts
@@ -46,6 +47,9 @@ default-extensions:
 - DataKinds
 - DeriveGeneric
 - DeriveAnyClass
+- DeriveFunctor
+- DeriveFoldable
+- DeriveTraversable
 
 ghc-options:
 - -Wall -Werror

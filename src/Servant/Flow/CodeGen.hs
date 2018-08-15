@@ -3,6 +3,7 @@ module Servant.Flow.CodeGen where
 import           Control.Lens
 import           Control.Monad.Reader
 import           Control.Monad.RWS     hiding (Any)
+import           Data.Functor.Foldable
 import           Data.Maybe
 import           Data.Monoid           ((<>))
 import           Data.Text             (Text)
@@ -62,8 +63,8 @@ indentLess :: CodeGen ()
 indentLess = modify (\i -> max (i -1) 0)
 
 
-argsToObject :: [Arg FlowType] -> FlowType
-argsToObject _ = Any
+-- argsToObject :: [Arg FlowType] -> FlowType
+-- argsToObject _ = Any
 
 renderArg :: Arg FlowType -> Text
 renderArg (Arg (PathSegment name) t) = name <> " " <> showFlowTypeInComment t
@@ -126,7 +127,7 @@ renderFun req = do
     funName <- getFuncName req
     line $ "function " <> funName
     parens renderAllArgs
-    tell . showFlowTypeInComment . fromMaybe Any $ _reqReturnType req
+    tell . showFlowTypeInComment . fromMaybe (Fix $ Prim Any) $ _reqReturnType req
     block renderBody
     line $ "module.exports." <> funName <> " = " <> funName
     where

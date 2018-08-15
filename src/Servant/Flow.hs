@@ -6,7 +6,7 @@ module Servant.Flow
     ) where
 
 import           Data.Proxy
-import           Data.Text (Text)
+import           Data.Text             (Text)
 import qualified Data.Text             as T
 import           Servant.Flow.CodeGen
 import           Servant.Flow.FlowType
@@ -14,8 +14,8 @@ import           Servant.Foreign
 
 data LangFlow
 
-instance HasForeignType LangFlow FlowType a where
-    typeFor _ _ _ = Any
+instance FlowTyped a => HasForeignType LangFlow FlowType a where
+    typeFor _ _ = flowType
 
 getEndpoints :: ( HasForeign LangFlow FlowType api
                 , GenerateList FlowType (Foreign FlowType api))

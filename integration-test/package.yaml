@@ -16,6 +16,7 @@ dependencies:
 - text
 - time
 - mtl
+- aeson
 
 default-extensions:
 - FlexibleContexts
@@ -28,6 +29,8 @@ default-extensions:
 - TypeOperators
 - DataKinds
 - DeriveGeneric
+- DeriveAnyClass
+
 
 library:
   source-dirs: src
@@ -59,4 +62,3 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - integration-test
-

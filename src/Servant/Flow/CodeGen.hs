@@ -2,7 +2,7 @@ module Servant.Flow.CodeGen where
 
 import           Control.Lens
 import           Control.Monad.Reader
-import           Control.Monad.RWS
+import           Control.Monad.RWS     hiding (Any)
 import           Data.Maybe
 import           Data.Monoid           ((<>))
 import           Data.Text             (Text)
@@ -63,13 +63,17 @@ indentLess = modify (\i -> max (i -1) 0)
 
 
 argsToObject :: [Arg FlowType] -> FlowType
-argsToObject = Object . fmap (\(Arg (PathSegment n) t) -> (n, t))
+argsToObject _ = Any
 
 renderArg :: Arg FlowType -> Text
-renderArg (Arg (PathSegment name) t) = name <> showFlowTypeInComment t
+renderArg (Arg (PathSegment name) t) = name <> " " <> showFlowTypeInComment t
+
+showFlowTypeOneLine :: FlowType -> Text
+showFlowTypeOneLine = T.replace "\n" " " . showFlowType
+
 
 renderArgNoComment :: Arg FlowType -> Text
-renderArgNoComment (Arg (PathSegment name) t) = name <> showFlowType t
+renderArgNoComment (Arg (PathSegment name) t) = name <> " : " <> showFlowTypeOneLine t
 
 getCaptureArgs :: Req a -> [Arg a]
 getCaptureArgs req = catMaybes . fmap getArg $ req ^. reqUrl . path
@@ -104,8 +108,8 @@ renderClientFunction = do
         line "token/* : string */,"
         line "baseURL/* : string */"
     block $ do
-        line "return axios.create("
-        block $ do
+        line "return axios.create"
+        parens . block $ do
             line "headers: "
             block $ line "Authorization: token"
             tell ","
@@ -122,6 +126,7 @@ renderFun req = do
     funName <- getFuncName req
     line $ "function " <> funName
     parens renderAllArgs
+    tell . showFlowTypeInComment . fromMaybe Any $ _reqReturnType req
     block renderBody
     line $ "module.exports." <> funName <> " = " <> funName
     where
@@ -180,4 +185,3 @@ renderFun req = do
             line $ "'" <> s <> "'"
             unless (null ss) $ tell ","
             renderUrl ss
-

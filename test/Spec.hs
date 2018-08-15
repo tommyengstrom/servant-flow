@@ -1,13 +1,16 @@
-import Servant.Flow
-import Servant.Flow.CodeGen
-import Servant
-import Test.Hspec
-import Data.Text (Text)
-import qualified Data.Text as T
-import GHC.Generics (Generic)
+import           Data.Aeson           (FromJSON, ToJSON)
+import           Data.Aeson.Flow
+import           Data.Text            (Text)
+import qualified Data.Text            as T
+import           GHC.Generics         (Generic)
+import           Servant
+import           Servant.Flow
+import           Servant.Flow.CodeGen
+import           Test.Hspec
+
 
 data Transformation = ToUpper | ToLower
-    deriving (Show, Generic)
+    deriving (Show, Generic, ToJSON, FromJSON, FlowTyped)
 
 type API = "changeCase"
         :> Capture "transformation" Transformation

@@ -23,6 +23,7 @@ dependencies:
 - aeson
 - base >= 4.7 && < 5
 - containers
+- unordered-containers
 - lens
 - servant
 - servant-foreign
@@ -44,6 +45,7 @@ default-extensions:
 - TypeOperators
 - DataKinds
 - DeriveGeneric
+- DeriveAnyClass
 
 ghc-options:
 - -Wall -Werror
@@ -55,6 +57,17 @@ tests:
   servant-flow-test:
     main:                Spec.hs
     source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - servant-flow
+    - servant-server
+    - hspec
+  servant-flow-integration-test:
+    main:                TestAPI.hs
+    source-dirs:         integration-test/src
     ghc-options:
     - -threaded
     - -rtsopts

@@ -1,11 +1,10 @@
 module Main where
 
 import           Data.Proxy
-import qualified Data.Text.IO as T
+import qualified Data.Text.IO       as T
 import           Servant.Flow
+import           System.Environment (getArgs)
 import           TestAPI
-import Data.Monoid
-import System.Environment (getArgs)
 
 main :: IO ()
 main = do
@@ -17,4 +16,3 @@ main = do
                   <> "\n\n"
                   <> generateFlowClient (Proxy @API) defaultOptions
     T.writeFile path clientCode
-

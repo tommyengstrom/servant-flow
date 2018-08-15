@@ -1,13 +1,17 @@
 module TestAPI where
 
 import           Data.Aeson
-import           Data.Text    (Text)
-import           Data.Time
-import           GHC.Generics (Generic)
+import           Data.Text             (Text)
+import           GHC.Generics          (Generic)
 import           Servant
+import           Servant.Flow.FlowType
+
 
 data Transformation = ToUpper | ToLower
     deriving (Show, Generic, ToJSON)
+
+instance FlowTyped Transformation where
+    flowType _ = primString
 
 instance FromHttpApiData Transformation where
     parseUrlPiece "ToUpper" = Right ToUpper
@@ -31,6 +35,5 @@ data BigAssRecord = BAR
     { barFoo            :: Int
     , barBool           :: Bool
     , barTransformation :: Transformation
-    , barTime           :: UTCTime
-    --, barDay :: Day
-    } deriving (Show, Generic, ToJSON)
+    -- , barTime           :: UTCTime
+    } deriving (Show, Generic, ToJSON, FlowTyped)

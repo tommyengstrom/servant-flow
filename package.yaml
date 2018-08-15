@@ -50,6 +50,8 @@ default-extensions:
 - DeriveFunctor
 - DeriveFoldable
 - DeriveTraversable
+- DefaultSignatures
+- TypeFamilies
 
 ghc-options:
 - -Wall -Werror

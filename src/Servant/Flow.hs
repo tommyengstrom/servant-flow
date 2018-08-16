@@ -1,6 +1,6 @@
 module Servant.Flow
     ( module Servant.Flow
-    , defaultOptions
+    , defaultCodeGenOptions
     , CodeGenOptions (..)
     , renderClientFunction
     ) where

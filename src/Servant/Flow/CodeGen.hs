@@ -12,7 +12,7 @@ import           Data.Text.Encoding    (decodeUtf8)
 import           Servant.Flow.FlowType
 import           Servant.Foreign
 
-type CodeGenerator = Reader CodeGenOptions
+
 type Indent = Int
 
 type CodeGen = RWS CodeGenOptions Text Indent
@@ -29,8 +29,8 @@ data CodeGenOptions = CodeGenOptions
     , cgIndentSize         :: Int
     }
 
-defaultOptions :: CodeGenOptions
-defaultOptions = CodeGenOptions
+defaultCodeGenOptions :: CodeGenOptions
+defaultCodeGenOptions = CodeGenOptions
     { cgRenderFunctionName = camelCase
     , cgIndentSize         = 4
     }
@@ -62,9 +62,6 @@ indentMore = modify (+1)
 indentLess :: CodeGen ()
 indentLess = modify (\i -> max (i -1) 0)
 
-
--- argsToObject :: [Arg FlowType] -> FlowType
--- argsToObject _ = Any
 
 renderArg :: Arg FlowType -> Text
 renderArg (Arg (PathSegment name) t) = name <> " " <> showFlowTypeInComment t

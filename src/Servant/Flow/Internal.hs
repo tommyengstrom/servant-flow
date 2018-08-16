@@ -6,6 +6,7 @@ import           Data.Aeson            (Options (..), defaultOptions)
 import           Data.Bifunctor        (first)
 import           Data.Functor.Foldable
 import           Data.Int              (Int64)
+import           Data.Map              (Map)
 import           Data.Monoid           ((<>))
 import           Data.Proxy
 import           Data.String
@@ -63,6 +64,22 @@ instance FlowTyped a => FlowTyped (Maybe a) where
 instance FlowTyped a => FlowTyped [a] where
     flowType _ = Fix . Array $ flowType (Proxy @a)
 
+instance (FlowObjectKey k, FlowTyped a) => FlowTyped (Map k a) where
+    flowType _ = Fix . Object $ [IndexerProperty primString $ flowType (Proxy @a)]
+
+
+-- | Arbitrary types cannot be object keys but need some reasonable textual representation
+--   "Data.Aeson.ToJSONKey" has more complex functionality than we support.
+class FlowObjectKey a
+
+instance FlowObjectKey String
+instance FlowObjectKey Text
+instance FlowObjectKey Float
+instance FlowObjectKey Double
+instance FlowObjectKey Int
+instance FlowObjectKey Int64
+
+
 
 -- Generic instances
 class GFlowTyped f where
@@ -119,6 +136,7 @@ data PrimType
   | Number
   | String
   | Any
+  | AnyObject
   deriving (Show, Eq, Ord)
 
 
@@ -131,25 +149,38 @@ data FlowTypeF a
     | Nullable a
     | Sum [a]   -- "Union" in Flow terminology
     | Literal Lit
+    | Object [PropertyF a]
     deriving (Show, Eq, Functor, Traversable, Foldable)
 
 data Lit
     = LitString Text
     deriving (Show, Eq)
 
+data PropertyF a
+    -- | A regular object field
+    = Property Text a
+    -- | A 'Map'-like field with a specific key type.
+    | IndexerProperty a a -- like a 'Map'
+    deriving (Show, Eq, Functor, Traversable, Foldable)
+    -- | NamedIndexerProperty Text a a
+
 showLiteral :: Lit -> Text
 showLiteral (LitString txt) = fromString $ show txt
 
 -- Primative FlowTypes for export
-primBoolean, primNumber, primString, primAny :: FlowType
-primBoolean = Fix $ Prim Boolean
-primNumber  = Fix $ Prim Number
-primString  = Fix $ Prim String
-primAny     = Fix $ Prim Any
+primBoolean, primNumber, primString, primAny, primAnyObject :: FlowType
+primBoolean   = Fix $ Prim Boolean
+primNumber    = Fix $ Prim Number
+primString    = Fix $ Prim String
+primAny       = Fix $ Prim Any
+primAnyObject = Fix $ Prim AnyObject
 
 
 renderFlowTypeInComment :: FlowType -> Text
 renderFlowTypeInComment t = "/* : " <> renderFlowType t <> " */"
+
+inBrackets :: Text -> Text
+inBrackets t = "{ " <> t <> " }"
 
 inSuperBrackets :: Text -> Text
 inSuperBrackets t = "{| " <> t <> " |}"
@@ -157,14 +188,23 @@ inSuperBrackets t = "{| " <> t <> " |}"
 renderFlowType :: FlowType -> Text
 renderFlowType = cata renderFlowTypeF
 
+renderPrimative :: PrimType -> Text
+renderPrimative Boolean   = "boolean"
+renderPrimative Number    = "number"
+renderPrimative String    = "string"
+renderPrimative Any       = "any"
+renderPrimative AnyObject = "{}" -- unclear if/how this differs from "Object"
+
+renderProperty :: PropertyF Text -> Text
+renderProperty (Property fieldName ty)    = fieldName <> ": " <> ty
+renderProperty (IndexerProperty keyTy ty) = "[" <> keyTy <> "]: " <> ty
+
 renderFlowTypeF :: FlowTypeF Text -> Text
-renderFlowTypeF (Prim Boolean)  = "boolean"
-renderFlowTypeF (Prim Number)   = "number"
-renderFlowTypeF (Prim String)   = "string"
-renderFlowTypeF (Prim Any)      = "any"
+renderFlowTypeF (Prim prim)     = renderPrimative prim
 renderFlowTypeF (Nullable t)    = "?" <> t
 renderFlowTypeF (Array a)       = a <> "[]"
 renderFlowTypeF (Sum l)         = T.intercalate " | " l
 renderFlowTypeF (Literal lit)   = showLiteral lit
+renderFlowTypeF (Object ps)     = inBrackets . T.intercalate ", " $ renderProperty <$> ps
 renderFlowTypeF (ExactObject l) = inSuperBrackets . T.intercalate ", " $
     (\(n, t) -> n <> " : " <> t) <$> l

@@ -1,14 +1,15 @@
 module Servant.Flow
 
 
-    ( -- ** Class and basic types
+    ( -- ** Classes and basic types
       FlowType
     , FlowTyped (..)
     , genericFlowType
     , renderFlowType
+    , FlowObjectKey
 
     -- *** Primative types
-    , primBoolean, primNumber, primString, primAny
+    , primBoolean, primNumber, primString, primAny, primAnyObject
 
     -- ** Code generation
     , CodeGenOptions (..)
@@ -37,6 +38,7 @@ import qualified Data.Text             as T
 import           Servant.Flow.CodeGen
 import           Servant.Flow.Internal
 import           Servant.Foreign
+
 
 data LangFlow
 

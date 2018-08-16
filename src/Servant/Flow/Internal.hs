@@ -9,11 +9,13 @@ import           Data.Int              (Int64)
 import           Data.Map              (Map)
 import           Data.Monoid           ((<>))
 import           Data.Proxy
+import           Data.Set              (Set)
 import           Data.String
 import           Data.Text             (Text)
 import qualified Data.Text             as T
-import           Data.Time             (Day, UTCTime)
+import           Data.Time             (Day, LocalTime, UTCTime)
 import           GHC.Generics
+import           Servant.API           (NoContent)
 
 
 class FlowTyped a where
@@ -57,6 +59,12 @@ instance FlowTyped UTCTime where
 instance FlowTyped Day where
     flowType _ = Fix $ Prim String
 
+instance FlowTyped LocalTime where
+    flowType _ = Fix $ Prim String
+
+instance FlowTyped NoContent where
+    flowType _ = Fix $ Prim Void
+
 
 instance FlowTyped a => FlowTyped (Maybe a) where
     flowType _ = Fix . Nullable $ flowType (Proxy @a)
@@ -64,7 +72,10 @@ instance FlowTyped a => FlowTyped (Maybe a) where
 instance FlowTyped a => FlowTyped [a] where
     flowType _ = Fix . Array $ flowType (Proxy @a)
 
-instance (FlowObjectKey k, FlowTyped a) => FlowTyped (Map k a) where
+instance (Ord a, FlowTyped a) => FlowTyped (Set a) where
+    flowType _ = Fix . Array $ flowType (Proxy @a)
+
+instance (Ord k, FlowObjectKey k, FlowTyped a) => FlowTyped (Map k a) where
     flowType _ = Fix . Object $ [IndexerProperty primString $ flowType (Proxy @a)]
 
 
@@ -136,6 +147,7 @@ data PrimType
   | String
   | Any
   | AnyObject
+  | Void
   deriving (Show, Eq, Ord)
 
 
@@ -161,18 +173,19 @@ data PropertyF a
     -- | A 'Map'-like field with a specific key type.
     | IndexerProperty a a -- like a 'Map'
     deriving (Show, Eq, Functor, Traversable, Foldable)
-    -- | NamedIndexerProperty Text a a
+    -- NamedIndexerProperty Text a a  -- Carries a simple comment-like annotation
 
 showLiteral :: Lit -> Text
 showLiteral (LitString txt) = fromString $ show txt
 
 -- Primative FlowTypes for export
-primBoolean, primNumber, primString, primAny, primAnyObject :: FlowType
+primBoolean, primNumber, primString, primAny, primAnyObject, primVoid :: FlowType
 primBoolean   = Fix $ Prim Boolean
 primNumber    = Fix $ Prim Number
 primString    = Fix $ Prim String
 primAny       = Fix $ Prim Any
 primAnyObject = Fix $ Prim AnyObject
+primVoid      = Fix $ Prim Void
 
 
 renderFlowTypeInComment :: FlowType -> Text
@@ -193,6 +206,7 @@ renderPrimative Number    = "number"
 renderPrimative String    = "string"
 renderPrimative Any       = "any"
 renderPrimative AnyObject = "{}" -- unclear if/how this differs from "Object"
+renderPrimative Void      = "void"
 
 renderProperty :: PropertyF Text -> Text
 renderProperty (Property fieldName ty)    = fieldName <> ": " <> ty

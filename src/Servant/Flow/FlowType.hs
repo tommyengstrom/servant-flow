@@ -18,7 +18,13 @@ class FlowTyped a where
 
     default
         flowType :: (Generic a, GFlowTyped (Rep a)) => Proxy a -> FlowType
-    flowType _ = gFlowType defaultOptions (from (undefined :: a))
+    flowType pa = genericFlowType defaultOptions pa
+
+
+genericFlowType :: forall a. (Generic a, GFlowTyped (Rep a))
+                => Options -> Proxy a -> FlowType
+genericFlowType opts _ = gFlowType opts (from (undefined :: a))
+
 
 -- Primative instances
 instance FlowTyped Int where
@@ -32,6 +38,10 @@ instance FlowTyped Text where
 
 instance FlowTyped a => FlowTyped (Maybe a) where
     flowType _ = Fix . Nullable $ flowType (Proxy @a)
+
+instance FlowTyped a => FlowTyped [a] where
+    flowType _ = Fix . Array $ flowType (Proxy @a)
+
 
 -- Generic instances
 class GFlowTyped f where
@@ -109,6 +119,7 @@ data Lit
 showLiteral :: Lit -> Text
 showLiteral (LitString txt) = fromString $ show txt
 
+-- Primative FlowTypes for export
 primBoolean, primNumber, primString, primAny :: FlowType
 primBoolean = Fix $ Prim Boolean
 primNumber  = Fix $ Prim Number
@@ -118,10 +129,6 @@ primAny     = Fix $ Prim Any
 
 showFlowTypeInComment :: FlowType -> Text
 showFlowTypeInComment t = "/* : " <> showFlowType t <> " */"
-
-
-inBrackets :: Text -> Text
-inBrackets t = "{ " <> t <> " }"
 
 inSuperBrackets :: Text -> Text
 inSuperBrackets t = "{| " <> t <> " |}"

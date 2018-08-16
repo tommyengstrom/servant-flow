@@ -85,13 +85,12 @@ instance FlowObjectKey Int64
 class GFlowTyped f where
     gFlowType :: Options -> f x -> FlowType
 
--- Single-constructor multi-field records
-instance (GFlowRecordFields f, GFlowRecordFields g)
-    => GFlowTyped (D1 m1 (C1 m2 (f :*: g))) where
-        gFlowType opts _
-            = Fix . ExactObject
-            . fmap (first $ fromString . (fieldLabelModifier opts))
-            $ recordFields (undefined :: (f :*: g) ())
+-- Single-constructor records
+instance GFlowRecordFields f => GFlowTyped (D1 m1 (C1 m2 f)) where
+    gFlowType opts _
+        = Fix . ExactObject
+        . fmap (first $ fromString . (fieldLabelModifier opts))
+        $ recordFields (undefined :: f ())
 
 -- Simple sum types
 instance GSimpleSum (f :+: g) => GFlowTyped (D1 m (f :+: g)) where

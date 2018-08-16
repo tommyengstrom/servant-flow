@@ -1,6 +1,6 @@
 {-# LANGUAGE StrictData #-}
 
-module Servant.Flow.FlowType where
+module Servant.Flow.Internal where
 
 import           Data.Aeson            (Options (..), defaultOptions)
 import           Data.Bifunctor        (first)
@@ -127,23 +127,23 @@ primString  = Fix $ Prim String
 primAny     = Fix $ Prim Any
 
 
-showFlowTypeInComment :: FlowType -> Text
-showFlowTypeInComment t = "/* : " <> showFlowType t <> " */"
+renderFlowTypeInComment :: FlowType -> Text
+renderFlowTypeInComment t = "/* : " <> renderFlowType t <> " */"
 
 inSuperBrackets :: Text -> Text
 inSuperBrackets t = "{| " <> t <> " |}"
 
-showFlowType :: FlowType -> Text
-showFlowType = cata showFlowTypeF
+renderFlowType :: FlowType -> Text
+renderFlowType = cata renderFlowTypeF
 
-showFlowTypeF :: FlowTypeF Text -> Text
-showFlowTypeF (Prim Boolean)  = "boolean"
-showFlowTypeF (Prim Number)   = "number"
-showFlowTypeF (Prim String)   = "string"
-showFlowTypeF (Prim Any)      = "any"
-showFlowTypeF (Nullable t)    = "?" <> t
-showFlowTypeF (Array a)       = a <> "[]"
-showFlowTypeF (Sum l)         = T.intercalate " | " l
-showFlowTypeF (Literal lit)   = showLiteral lit
-showFlowTypeF (ExactObject l) = inSuperBrackets $
-    T.intercalate ", " (fmap (\(n, t) -> n <> " : " <> t) l)
+renderFlowTypeF :: FlowTypeF Text -> Text
+renderFlowTypeF (Prim Boolean)  = "boolean"
+renderFlowTypeF (Prim Number)   = "number"
+renderFlowTypeF (Prim String)   = "string"
+renderFlowTypeF (Prim Any)      = "any"
+renderFlowTypeF (Nullable t)    = "?" <> t
+renderFlowTypeF (Array a)       = a <> "[]"
+renderFlowTypeF (Sum l)         = T.intercalate " | " l
+renderFlowTypeF (Literal lit)   = showLiteral lit
+renderFlowTypeF (ExactObject l) = inSuperBrackets . T.intercalate ", " $
+    (\(n, t) -> n <> " : " <> t) <$> l

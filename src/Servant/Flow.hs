@@ -1,15 +1,41 @@
 module Servant.Flow
-    ( module Servant.Flow
-    , defaultCodeGenOptions
-    , CodeGenOptions (..)
-    , renderClientFunction
-    ) where
 
+
+    ( -- ** Class and basic types
+      FlowType
+    , FlowTyped (..)
+    , genericFlowType
+    , renderFlowType
+
+    -- *** Primative types
+    , primBoolean, primNumber, primString, primAny
+
+    -- ** Code generation
+    , CodeGenOptions (..)
+    , defaultCodeGenOptions
+    , renderClientFunction
+    , generateClientFunction
+    , getEndpoints
+    , generateFlowClient
+
+    -- ** Aeson rexports
+    , Options (..)
+    , defaultOptions
+    , SumEncoding (..)
+    , defaultTaggedObject
+
+    -- ** Servant HasForeign
+    , LangFlow
+
+) where
+
+import           Data.Aeson            (Options (..), SumEncoding (..), defaultOptions,
+                                        defaultTaggedObject)
 import           Data.Proxy
 import           Data.Text             (Text)
 import qualified Data.Text             as T
 import           Servant.Flow.CodeGen
-import           Servant.Flow.FlowType
+import           Servant.Flow.Internal
 import           Servant.Foreign
 
 data LangFlow

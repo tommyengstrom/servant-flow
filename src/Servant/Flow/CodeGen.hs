@@ -9,7 +9,7 @@ import           Data.Monoid           ((<>))
 import           Data.Text             (Text)
 import qualified Data.Text             as T
 import           Data.Text.Encoding    (decodeUtf8)
-import           Servant.Flow.FlowType
+import           Servant.Flow.Internal
 import           Servant.Foreign
 
 
@@ -64,14 +64,14 @@ indentLess = modify (\i -> max (i -1) 0)
 
 
 renderArg :: Arg FlowType -> Text
-renderArg (Arg (PathSegment name) t) = name <> " " <> showFlowTypeInComment t
+renderArg (Arg (PathSegment name) t) = name <> " " <> renderFlowTypeInComment t
 
-showFlowTypeOneLine :: FlowType -> Text
-showFlowTypeOneLine = T.replace "\n" " " . showFlowType
+renderFlowTypeOneLine :: FlowType -> Text
+renderFlowTypeOneLine = T.replace "\n" " " . renderFlowType
 
 
 renderArgNoComment :: Arg FlowType -> Text
-renderArgNoComment (Arg (PathSegment name) t) = name <> " : " <> showFlowTypeOneLine t
+renderArgNoComment (Arg (PathSegment name) t) = name <> " : " <> renderFlowTypeOneLine t
 
 getCaptureArgs :: Req a -> [Arg a]
 getCaptureArgs req = catMaybes . fmap getArg $ req ^. reqUrl . path
@@ -124,7 +124,7 @@ renderFun req = do
     funName <- getFuncName req
     line $ "function " <> funName
     parens renderAllArgs
-    tell . showFlowTypeInComment . fromMaybe (Fix $ Prim Any) $ _reqReturnType req
+    tell . renderFlowTypeInComment . fromMaybe (Fix $ Prim Any) $ _reqReturnType req
     block renderBody
     line $ "module.exports." <> funName <> " = " <> funName
     where

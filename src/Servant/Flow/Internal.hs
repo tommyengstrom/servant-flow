@@ -5,11 +5,13 @@ module Servant.Flow.Internal where
 import           Data.Aeson            (Options (..), defaultOptions)
 import           Data.Bifunctor        (first)
 import           Data.Functor.Foldable
+import           Data.Int              (Int64)
 import           Data.Monoid           ((<>))
 import           Data.Proxy
 import           Data.String
 import           Data.Text             (Text)
 import qualified Data.Text             as T
+import           Data.Time             (Day, UTCTime)
 import           GHC.Generics
 
 
@@ -30,11 +32,30 @@ genericFlowType opts _ = gFlowType opts (from (undefined :: a))
 instance FlowTyped Int where
     flowType _ = Fix $ Prim Number
 
+instance FlowTyped Int64 where
+    flowType _ = Fix $ Prim Number
+
+instance FlowTyped Float where
+    flowType _ = Fix $ Prim Number
+
+instance FlowTyped Double where
+    flowType _ = Fix $ Prim Number
+
 instance FlowTyped Bool where
     flowType _ = Fix $ Prim Boolean
 
 instance FlowTyped Text where
     flowType _ = Fix $ Prim String
+
+instance FlowTyped String where
+    flowType _ = Fix $ Prim String
+
+instance FlowTyped UTCTime where
+    flowType _ = Fix $ Prim String
+
+instance FlowTyped Day where
+    flowType _ = Fix $ Prim String
+
 
 instance FlowTyped a => FlowTyped (Maybe a) where
     flowType _ = Fix . Nullable $ flowType (Proxy @a)

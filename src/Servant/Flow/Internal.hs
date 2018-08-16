@@ -85,11 +85,6 @@ class FlowObjectKey a
 
 instance FlowObjectKey String
 instance FlowObjectKey Text
-instance FlowObjectKey Float
-instance FlowObjectKey Double
-instance FlowObjectKey Int
-instance FlowObjectKey Int64
-
 
 
 -- Generic instances

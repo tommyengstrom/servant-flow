@@ -191,6 +191,9 @@ primVoid      = Fix $ Prim Void
 renderFlowTypeInComment :: FlowType -> Text
 renderFlowTypeInComment t = "/* : " <> renderFlowType t <> " */"
 
+inParens :: Text -> Text
+inParens t = "(" <> t <> ")"
+
 inBrackets :: Text -> Text
 inBrackets t = "{ " <> t <> " }"
 
@@ -214,8 +217,8 @@ renderProperty (IndexerProperty keyTy ty) = "[" <> keyTy <> "]: " <> ty
 
 renderFlowTypeF :: FlowTypeF Text -> Text
 renderFlowTypeF (Prim prim)     = renderPrimative prim
-renderFlowTypeF (Nullable t)    = "?" <> t
-renderFlowTypeF (Array a)       = a <> "[]"
+renderFlowTypeF (Nullable t)    = "?" <> inParens t
+renderFlowTypeF (Array a)       = inParens a <> "[]"
 renderFlowTypeF (Sum l)         = T.intercalate " | " l
 renderFlowTypeF (Literal lit)   = showLiteral lit
 renderFlowTypeF (Object ps)     = inBrackets . T.intercalate ", " $ renderProperty <$> ps

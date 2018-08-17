@@ -4,6 +4,7 @@ module Servant.Flow.Internal where
 
 import           Data.Aeson            (Options (..), defaultOptions)
 import           Data.Bifunctor        (first)
+import           Data.Foldable         (toList)
 import           Data.Functor.Foldable
 import           Data.Int              (Int64)
 import           Data.Map              (Map)
@@ -19,64 +20,65 @@ import           Servant.API           (NoContent)
 
 
 class FlowTyped a where
-    flowType :: Proxy a -> FlowType
+    flowTypeInfo :: Proxy a -> FlowTypeInfo
 
     default
-        flowType :: (Generic a, GFlowTyped (Rep a)) => Proxy a -> FlowType
-    flowType pa = genericFlowType defaultOptions pa
+        flowTypeInfo :: (Generic a, GFlowTyped (Rep a)) => Proxy a -> FlowTypeInfo
+    flowTypeInfo pa = genericFlowType defaultOptions pa
+
+    flowType :: Proxy a -> FlowType
+    flowType = forgetNames . flowTypeInfo
 
 
 genericFlowType :: forall a. (Generic a, GFlowTyped (Rep a))
-                => Options -> Proxy a -> FlowType
-genericFlowType opts _ = gFlowType opts (from (undefined :: a))
+                => Options -> Proxy a -> FlowTypeInfo
+genericFlowType opts _ = nameless $ gFlowType opts (from (undefined :: a))
 
 
 -- Primative instances
 instance FlowTyped Int where
-    flowType _ = Fix $ Prim Number
+    flowTypeInfo _ = nameless primNumber
 
 instance FlowTyped Int64 where
-    flowType _ = Fix $ Prim Number
+    flowTypeInfo _ = nameless primNumber
 
 instance FlowTyped Float where
-    flowType _ = Fix $ Prim Number
+    flowTypeInfo _ = nameless primNumber
 
 instance FlowTyped Double where
-    flowType _ = Fix $ Prim Number
+    flowTypeInfo _ = nameless primNumber
 
 instance FlowTyped Bool where
-    flowType _ = Fix $ Prim Boolean
+    flowTypeInfo _ = nameless primNumber
 
 instance FlowTyped Text where
-    flowType _ = Fix $ Prim String
-
-instance FlowTyped String where
-    flowType _ = Fix $ Prim String
+    flowTypeInfo _ = nameless primString
 
 instance FlowTyped UTCTime where
-    flowType _ = Fix $ Prim String
+    flowTypeInfo _ = nameless primString
 
 instance FlowTyped Day where
-    flowType _ = Fix $ Prim String
+    flowTypeInfo _ = nameless primString
 
 instance FlowTyped LocalTime where
-    flowType _ = Fix $ Prim String
+    flowTypeInfo _ = nameless primString
 
 instance FlowTyped NoContent where
-    flowType _ = Fix $ Prim Void
+    flowTypeInfo _ = nameless primVoid
 
 
 instance FlowTyped a => FlowTyped (Maybe a) where
-    flowType _ = Fix . Nullable $ flowType (Proxy @a)
+    flowTypeInfo _ = Fix . L1 . Nullable $ flowTypeInfo (Proxy @a)
 
 instance FlowTyped a => FlowTyped [a] where
-    flowType _ = Fix . Array $ flowType (Proxy @a)
+    flowTypeInfo _ = Fix . L1 . Array $ flowTypeInfo (Proxy @a)
 
 instance (Ord a, FlowTyped a) => FlowTyped (Set a) where
-    flowType _ = Fix . Array $ flowType (Proxy @a)
+    flowTypeInfo _ = Fix . L1 . Array $ flowTypeInfo (Proxy @a)
 
 instance (Ord k, FlowObjectKey k, FlowTyped a) => FlowTyped (Map k a) where
-    flowType _ = Fix . Object $ [IndexerProperty primString $ flowType (Proxy @a)]
+    flowTypeInfo _ = Fix . L1 . Object $
+        [IndexerProperty (nameless primString) $ flowTypeInfo (Proxy @a)]
 
 
 -- | Arbitrary types cannot be object keys but need some reasonable textual representation
@@ -170,6 +172,7 @@ data PropertyF a
     deriving (Show, Eq, Functor, Traversable, Foldable)
     -- NamedIndexerProperty Text a a  -- Carries a simple comment-like annotation
 
+
 showLiteral :: Lit -> Text
 showLiteral (LitString txt) = fromString $ show txt
 
@@ -219,3 +222,36 @@ renderFlowTypeF (Literal lit)   = showLiteral lit
 renderFlowTypeF (Object ps)     = inBrackets . T.intercalate ", " $ renderProperty <$> ps
 renderFlowTypeF (ExactObject l) = inSuperBrackets . T.intercalate ", " $
     (\(n, t) -> n <> " : " <> t) <$> l
+
+
+-- | Annotate a place in a type expression as correspdonding to a named definition.
+--   No assumptions are made about the name, such as any relationship to the haskell one.
+data Named a = Named
+    { namedName :: Text
+    , namedBody :: a
+    } deriving (Functor, Foldable)
+
+type FlowTypeInfoF = FlowTypeF :+: Named
+type FlowTypeInfo  = Fix FlowTypeInfoF
+
+forgetNamesF :: (FlowTypeF :+: Named) FlowType -> FlowType
+forgetNamesF (L1 ty) = Fix ty
+forgetNamesF (R1 r)  = namedBody r
+
+forgetNames :: FlowTypeInfo -> FlowType
+forgetNames = cata forgetNamesF
+
+nameless :: FlowType -> FlowTypeInfo
+nameless = cata $ Fix . L1
+
+named :: Text -> FlowTypeInfo -> FlowTypeInfo
+named n = Fix . R1 . Named n
+
+renderFlowTypeWithRefsF :: FlowTypeInfoF Text -> Text
+renderFlowTypeWithRefsF (L1 ty) = renderFlowTypeF ty
+renderFlowTypeWithRefsF (R1 n)  = namedName n
+
+type Env = [(Text, FlowTypeInfo)]
+
+getTypeEnvF :: FlowTypeInfoF Env -> Env
+getTypeEnvF = concat . toList

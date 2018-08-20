@@ -33,7 +33,7 @@ dependencies:
 - mtl
 - transformers
 - http-types
-- recursion-schemes
+- recursed
 
 default-extensions:
 - FlexibleContexts

@@ -1,22 +1,68 @@
-{-# LANGUAGE StrictData #-}
+{-# LANGUAGE StrictData      #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Servant.Flow.Internal where
 
-import           Data.Aeson            (Options (..), defaultOptions)
-import           Data.Bifunctor        (first)
-import           Data.Foldable         (toList)
-import           Data.Functor.Foldable
-import           Data.Int              (Int64)
-import           Data.Map              (Map)
-import           Data.Monoid           ((<>))
+import           Data.Aeson     (Options (..), defaultOptions)
+import           Data.Bifunctor (first)
+import           Data.Foldable  (toList)
+import           Data.Int       (Int64)
+import           Data.Map       (Map)
+import           Data.Monoid    ((<>))
 import           Data.Proxy
-import           Data.Set              (Set)
+import           Data.Set       (Set)
 import           Data.String
-import           Data.Text             (Text)
-import qualified Data.Text             as T
-import           Data.Time             (Day, LocalTime, UTCTime)
+import           Data.Text      (Text)
+import qualified Data.Text      as T
+import           Data.Time      (Day, LocalTime, UTCTime)
 import           GHC.Generics
-import           Servant.API           (NoContent)
+import           Recursed
+import           Servant.API    (NoContent)
+
+
+data FlowType
+    = Prim PrimType
+    | ExactObject [(Text, FlowType)]
+    | Array FlowType
+    | Nullable FlowType
+    | Sum [FlowType]   -- "Union" in Flow terminology
+    | Literal Lit
+    | Object [PropertyF FlowType]
+    deriving (Show, Eq)
+
+data PrimType
+    = Boolean
+    | Number
+    | String
+    | Any
+    | AnyObject
+    | Void
+    deriving (Show, Eq, Ord)
+
+data Lit
+    = LitString Text
+    deriving (Show, Eq)
+
+data PropertyF a
+    -- | A regular object field
+    = Property Text a
+    -- | A 'Map'-like field with a specific key type.
+    | IndexerProperty a a -- like a 'Map'
+    deriving (Show, Eq, Functor, Traversable, Foldable)
+    -- NamedIndexerProperty Text a a  -- Carries a simple comment-like annotation
+
+$(recursed ''FlowType)
+
+
+-- | Annotate a place in a type expression as correspdonding to a named definition.
+--   No assumptions are made about the name, such as any relationship to the haskell one.
+data Named a = Named
+    { namedName :: Text
+    , namedBody :: a
+    } deriving (Functor, Foldable)
+
+type FlowTypeInfoF = FlowTypeF :+: Named
+type FlowTypeInfo  = Fix FlowTypeInfoF
 
 
 class FlowTyped a where
@@ -37,48 +83,48 @@ genericFlowType opts _ = nameless $ gFlowType opts (from (undefined :: a))
 
 -- Primative instances
 instance FlowTyped Int where
-    flowTypeInfo _ = nameless primNumber
+    flowTypeInfo _ = nameless $ Prim Number
 
 instance FlowTyped Int64 where
-    flowTypeInfo _ = nameless primNumber
+    flowTypeInfo _ = nameless $ Prim Number
 
 instance FlowTyped Float where
-    flowTypeInfo _ = nameless primNumber
+    flowTypeInfo _ = nameless $ Prim Number
 
 instance FlowTyped Double where
-    flowTypeInfo _ = nameless primNumber
+    flowTypeInfo _ = nameless $ Prim Number
 
 instance FlowTyped Bool where
-    flowTypeInfo _ = nameless primNumber
+    flowTypeInfo _ = nameless $ Prim Number
 
 instance FlowTyped Text where
-    flowTypeInfo _ = nameless primString
+    flowTypeInfo _ = nameless $ Prim String
 
 instance FlowTyped UTCTime where
-    flowTypeInfo _ = nameless primString
+    flowTypeInfo _ = nameless $ Prim String
 
 instance FlowTyped Day where
-    flowTypeInfo _ = nameless primString
+    flowTypeInfo _ = nameless $ Prim String
 
 instance FlowTyped LocalTime where
-    flowTypeInfo _ = nameless primString
+    flowTypeInfo _ = nameless $ Prim String
 
 instance FlowTyped NoContent where
-    flowTypeInfo _ = nameless primVoid
+    flowTypeInfo _ = nameless $ Prim Void
 
 
 instance FlowTyped a => FlowTyped (Maybe a) where
-    flowTypeInfo _ = Fix . L1 . Nullable $ flowTypeInfo (Proxy @a)
+    flowTypeInfo _ = Fix . L1 . Nullable_ $ flowTypeInfo (Proxy @a)
 
 instance FlowTyped a => FlowTyped [a] where
-    flowTypeInfo _ = Fix . L1 . Array $ flowTypeInfo (Proxy @a)
+    flowTypeInfo _ = Fix . L1 . Array_ $ flowTypeInfo (Proxy @a)
 
 instance (Ord a, FlowTyped a) => FlowTyped (Set a) where
-    flowTypeInfo _ = Fix . L1 . Array $ flowTypeInfo (Proxy @a)
+    flowTypeInfo _ = Fix . L1 . Array_ $ flowTypeInfo (Proxy @a)
 
 instance (Ord k, FlowObjectKey k, FlowTyped a) => FlowTyped (Map k a) where
-    flowTypeInfo _ = Fix . L1 . Object $
-        [IndexerProperty (nameless primString) $ flowTypeInfo (Proxy @a)]
+    flowTypeInfo _ = Fix . L1 . Object_ $
+        [IndexerProperty (nameless $ Prim String) $ flowTypeInfo (Proxy @a)]
 
 
 -- | Arbitrary types cannot be object keys but need some reasonable textual representation
@@ -96,13 +142,13 @@ class GFlowTyped f where
 -- Single-constructor records
 instance GFlowRecordFields f => GFlowTyped (D1 m1 (C1 m2 f)) where
     gFlowType opts _
-        = Fix . ExactObject
+        = ExactObject
         . fmap (first $ fromString . (fieldLabelModifier opts))
         $ recordFields (undefined :: f ())
 
 -- Simple sum types
 instance GSimpleSum (f :+: g) => GFlowTyped (D1 m (f :+: g)) where
-    gFlowType opts _ = Fix . Sum . fmap (Fix . Literal . LitString) $
+    gFlowType opts _ = Sum . fmap (Literal . LitString) $
         simpleSumOptions opts (undefined :: (f :+: g) ())
 
 -- Use an instance that already exists
@@ -138,52 +184,9 @@ instance (GSimpleSum f, GSimpleSum g) => GSimpleSum (f :+: g) where
         simpleSumOptions opts (undefined :: g ())
 
 
-data PrimType
-  = Boolean
-  | Number
-  | String
-  | Any
-  | AnyObject
-  | Void
-  deriving (Show, Eq, Ord)
-
-
-type FlowType = Fix FlowTypeF
-
-data FlowTypeF a
-    = Prim PrimType
-    | ExactObject [(Text, a)]
-    | Array a
-    | Nullable a
-    | Sum [a]   -- "Union" in Flow terminology
-    | Literal Lit
-    | Object [PropertyF a]
-    deriving (Show, Eq, Functor, Traversable, Foldable)
-
-data Lit
-    = LitString Text
-    deriving (Show, Eq)
-
-data PropertyF a
-    -- | A regular object field
-    = Property Text a
-    -- | A 'Map'-like field with a specific key type.
-    | IndexerProperty a a -- like a 'Map'
-    deriving (Show, Eq, Functor, Traversable, Foldable)
-    -- NamedIndexerProperty Text a a  -- Carries a simple comment-like annotation
-
 
 showLiteral :: Lit -> Text
 showLiteral (LitString txt) = fromString $ show txt
-
--- Primative FlowTypes for export
-primBoolean, primNumber, primString, primAny, primAnyObject, primVoid :: FlowType
-primBoolean   = Fix $ Prim Boolean
-primNumber    = Fix $ Prim Number
-primString    = Fix $ Prim String
-primAny       = Fix $ Prim Any
-primAnyObject = Fix $ Prim AnyObject
-primVoid      = Fix $ Prim Void
 
 
 renderFlowTypeInComment :: FlowType -> Text
@@ -198,8 +201,9 @@ inBrackets t = "{ " <> t <> " }"
 inSuperBrackets :: Text -> Text
 inSuperBrackets t = "{| " <> t <> " |}"
 
+
 renderFlowType :: FlowType -> Text
-renderFlowType = cata renderFlowTypeF
+renderFlowType = catamap renderFlowTypeF
 
 renderPrimative :: PrimType -> Text
 renderPrimative Boolean   = "boolean"
@@ -209,49 +213,57 @@ renderPrimative Any       = "any"
 renderPrimative AnyObject = "{}" -- unclear if/how this differs from "Object"
 renderPrimative Void      = "void"
 
-renderProperty :: PropertyF Text -> Text
+renderProperty :: Algebra PropertyF Text
 renderProperty (Property fieldName ty)    = fieldName <> ": " <> ty
 renderProperty (IndexerProperty keyTy ty) = "[" <> keyTy <> "]: " <> ty
 
-renderFlowTypeF :: FlowTypeF Text -> Text
-renderFlowTypeF (Prim prim)     = renderPrimative prim
-renderFlowTypeF (Nullable t)    = "?" <> inParens t
-renderFlowTypeF (Array a)       = inParens a <> "[]"
-renderFlowTypeF (Sum l)         = T.intercalate " | " l
-renderFlowTypeF (Literal lit)   = showLiteral lit
-renderFlowTypeF (Object ps)     = inBrackets . T.intercalate ", " $ renderProperty <$> ps
-renderFlowTypeF (ExactObject l) = inSuperBrackets . T.intercalate ", " $
+renderFlowTypeF :: Algebra FlowTypeF Text
+renderFlowTypeF (Prim_ prim)     = renderPrimative prim
+renderFlowTypeF (Nullable_ t)    = "?" <> inParens t
+renderFlowTypeF (Array_ a)       = inParens a <> "[]"
+renderFlowTypeF (Sum_ l)         = T.intercalate " | " l
+renderFlowTypeF (Literal_ lit)   = showLiteral lit
+renderFlowTypeF (Object_ ps)     = inBrackets . T.intercalate ", " $ renderProperty <$> ps
+renderFlowTypeF (ExactObject_ l) = inSuperBrackets . T.intercalate ", " $
     (\(n, t) -> n <> " : " <> t) <$> l
 
 
--- | Annotate a place in a type expression as correspdonding to a named definition.
---   No assumptions are made about the name, such as any relationship to the haskell one.
-data Named a = Named
-    { namedName :: Text
-    , namedBody :: a
-    } deriving (Functor, Foldable)
 
-type FlowTypeInfoF = FlowTypeF :+: Named
-type FlowTypeInfo  = Fix FlowTypeInfoF
-
-forgetNamesF :: (FlowTypeF :+: Named) FlowType -> FlowType
-forgetNamesF (L1 ty) = Fix ty
+forgetNamesF :: Algebra (FlowTypeF :+: Named) FlowType
+forgetNamesF (L1 ty) = unfixAlg ty
 forgetNamesF (R1 r)  = namedBody r
 
+-- | Discard all type name information in the 'FlowTypeInfo' leaving just the 'FlowType'.
 forgetNames :: FlowTypeInfo -> FlowType
 forgetNames = cata forgetNamesF
 
+-- | Convert a 'FlowType' to a 'FlowTypeInfo' without any type name information.
 nameless :: FlowType -> FlowTypeInfo
-nameless = cata $ Fix . L1
+nameless = catamap (Fix . L1)
 
+-- | Annotate a 'FlowTypeInfo' expression as corresponding to a named type definition.
 named :: Text -> FlowTypeInfo -> FlowTypeInfo
 named n = Fix . R1 . Named n
 
-renderFlowTypeWithRefsF :: FlowTypeInfoF Text -> Text
+-- | Create a 'FlowTypeInfo' by specifying the flow type name of the provided 'FlowType'.
+withName :: Text -> FlowType -> FlowTypeInfo
+withName n = named n . nameless
+
+renderFlowTypeWithRefsF :: Algebra FlowTypeInfoF Text
 renderFlowTypeWithRefsF (L1 ty) = renderFlowTypeF ty
 renderFlowTypeWithRefsF (R1 n)  = namedName n
 
 type Env = [(Text, FlowTypeInfo)]
 
-getTypeEnvF :: FlowTypeInfoF Env -> Env
+getTypeEnvF :: Algebra FlowTypeInfoF Env
 getTypeEnvF = concat . toList
+
+
+
+primBoolean, primNumber, primString, primAny, primAnyObject, primVoid :: FlowTypeInfo
+primBoolean   = nameless $ Prim Boolean
+primNumber    = nameless $ Prim Number
+primString    = nameless $ Prim String
+primAny       = nameless $ Prim Any
+primAnyObject = nameless $ Prim AnyObject 
+primVoid      = nameless $ Prim Void

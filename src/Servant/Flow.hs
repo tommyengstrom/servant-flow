@@ -8,8 +8,11 @@ module Servant.Flow
     , renderFlowType
     , FlowObjectKey
 
-    -- *** Primative types
-    , primBoolean, primNumber, primString, primAny, primAnyObject
+    -- ** Names and functions for converting FlowTypeInfo
+    , nameless, withName, named
+
+    -- ** FlowTypeInfo for primative types
+    , primBoolean, primNumber, primString, primAny, primAnyObject, primVoid
 
     -- ** Code generation
     , CodeGenOptions (..)

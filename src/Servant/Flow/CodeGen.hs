@@ -3,7 +3,6 @@ module Servant.Flow.CodeGen where
 import           Control.Lens
 import           Control.Monad.Reader
 import           Control.Monad.RWS     hiding (Any)
-import           Data.Functor.Foldable
 import           Data.Maybe
 import           Data.Monoid           ((<>))
 import           Data.Text             (Text)
@@ -124,7 +123,7 @@ renderFun req = do
     funName <- getFuncName req
     line $ "function " <> funName
     parens renderAllArgs
-    tell . renderFlowTypeInComment . fromMaybe (Fix $ Prim Any) $ _reqReturnType req
+    tell . renderFlowTypeInComment . fromMaybe (Prim Any) $ _reqReturnType req
     block renderBody
     line $ "module.exports." <> funName <> " = " <> funName
     where

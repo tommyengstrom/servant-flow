@@ -19,19 +19,21 @@ type CodeGen = RWS CodeGenOptions Text Indent
 runCodeGen' :: CodeGen a -> CodeGenOptions -> (a, Indent, Text)
 runCodeGen' g opts = runRWS g opts 0
 
-runCodeGen :: CodeGen a -> CodeGenOptions -> Text
-runCodeGen g = view _3 . runCodeGen' g
+execCodeGen :: CodeGenOptions -> CodeGen a -> Text
+execCodeGen opts g = view _3 $ runCodeGen' g opts
 
 -- | Options for how to generate the API client
 data CodeGenOptions = CodeGenOptions
     { cgRenderFunctionName :: FunctionName -> Text -- ^ Name of endpoint function
     , cgIndentSize         :: Int
+    , cgActivateFlow       :: Bool
     }
 
 defaultCodeGenOptions :: CodeGenOptions
 defaultCodeGenOptions = CodeGenOptions
     { cgRenderFunctionName = camelCase
     , cgIndentSize         = 4
+    , cgActivateFlow       = True
     }
 
 -- | Print indented
@@ -118,8 +120,8 @@ getFuncName req = do
     f <- asks cgRenderFunctionName
     pure . f $ req ^. reqFuncName
 
-renderFun :: Req FlowType -> CodeGen ()
-renderFun req = do
+renderEndpointFunction :: Req FlowType -> CodeGen ()
+renderEndpointFunction req = do
     funName <- getFuncName req
     line $ "function " <> funName
     parens renderAllArgs
@@ -170,8 +172,6 @@ renderFun req = do
                     tell ","
                     line "data: data"
 
-            pure ()
-
         renderUrl :: [Segment FlowType] -> CodeGen ()
         renderUrl []     = pure ()
         renderUrl (Segment (Cap (Arg (PathSegment n) _)):ss) = do
@@ -182,3 +182,14 @@ renderFun req = do
             line $ "'" <> s <> "'"
             unless (null ss) $ tell ","
             renderUrl ss
+
+renderFullClient :: [Req FlowType] -> CodeGen ()
+renderFullClient endpoints = do
+    activateFlow <- asks cgActivateFlow
+    when activateFlow $ tell "// @flow \n\n"
+    forM_ endpoints $ \endpoint -> do
+        renderEndpointFunction endpoint
+        tell "\n\n"
+
+renderTypeDef :: Text -> FlowType -> Text
+renderTypeDef tyName ty = "type " <> tyName <> " = " <> renderFlowType ty

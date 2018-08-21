@@ -25,7 +25,8 @@ data FlowType
     | ExactObject [(Text, FlowType)]
     | Array FlowType
     | Nullable FlowType
-    | Sum [FlowType]   -- "Union" in Flow terminology
+    -- | Called "Union" in Flow terminology
+    | Sum [FlowType]
     | Literal Lit
     | Object [PropertyF FlowType]
     deriving (Show, Eq)
@@ -265,5 +266,5 @@ primBoolean   = nameless $ Prim Boolean
 primNumber    = nameless $ Prim Number
 primString    = nameless $ Prim String
 primAny       = nameless $ Prim Any
-primAnyObject = nameless $ Prim AnyObject 
+primAnyObject = nameless $ Prim AnyObject
 primVoid      = nameless $ Prim Void

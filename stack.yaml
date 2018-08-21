@@ -41,7 +41,7 @@ packages:
 extra-deps:
 
     - git: git://github.com/fieldstrength/recursed.git
-      commit: 4f257a6c9379c6654e4682d7179d643368c3ad07
+      commit: 23488874e25417dd47f3714ec29022ab5de2dbbf
 
 
 # Override default flag values for local packages and extra-deps

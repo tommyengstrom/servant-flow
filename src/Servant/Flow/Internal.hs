@@ -254,10 +254,15 @@ renderFlowTypeWithRefsF :: Algebra FlowTypeInfoF Text
 renderFlowTypeWithRefsF (L1 ty) = renderFlowTypeF ty
 renderFlowTypeWithRefsF (R1 n)  = namedName n
 
+
 type Env = [(Text, FlowTypeInfo)]
 
-getTypeEnvF :: Algebra FlowTypeInfoF Env
-getTypeEnvF = concat . toList
+getEnvR :: RAlgebra FlowTypeInfoF Env
+getEnvR (L1 fpair) = snd =<< toList fpair
+getEnvR (R1 n)     = [(namedName n, fst $ namedBody n)]
+
+getEnv :: FlowTypeInfo -> Env
+getEnv = para getEnvR
 
 
 

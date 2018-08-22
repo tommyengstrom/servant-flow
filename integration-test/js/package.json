@@ -4,7 +4,8 @@
   "description": "test the generated client",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "flow": "flow"
   },
   "author": "Tommy Engström",
   "license": "BSD",
@@ -12,5 +13,9 @@
     "axios": "^0.18.0",
     "flow-runtime": "^0.17.0",
     "jest": "^23.2.0"
+  },
+  "devDependencies": {
+    "flow-remove-types": "^1.2.3",
+    "flow-bin": "^0.79.1"
   }
 }

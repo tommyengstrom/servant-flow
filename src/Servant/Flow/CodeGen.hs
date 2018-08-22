@@ -101,6 +101,7 @@ block g = do
 
 renderClientFunction :: CodeGen ()
 renderClientFunction = do
+    line "const axios = require('axios')"
     line "function createClient"
     parens $ do
         line "token/* : string */,"
@@ -175,11 +176,24 @@ renderFun req = do
 
         renderUrl :: [Segment FlowType] -> CodeGen ()
         renderUrl []     = pure ()
-        renderUrl (Segment (Cap (Arg (PathSegment n) _)):ss) = do
-            line $ "encodeURIComponent(" <> n <> ")"
+        renderUrl (Segment (Cap (Arg (PathSegment n) ty)):ss) = do
+            let param = if isString ty then n else n <> ".toString()"
+            line $ "encodeURIComponent(" <> param <> ")"
             unless (null ss) $ tell ","
             renderUrl ss
         renderUrl (Segment (Static (PathSegment s)):ss) = do
             line $ "'" <> s <> "'"
             unless (null ss) $ tell ","
             renderUrl ss
+
+
+isString :: FlowType -> Bool
+isString ft = case ft of
+    Fix (Prim p) -> case p of
+        String    -> True
+        Number    -> False
+        Boolean   -> False
+        Any       -> False
+        AnyObject -> False
+        Void      -> False
+    Fix _ -> False

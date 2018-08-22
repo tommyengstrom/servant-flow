@@ -8,7 +8,7 @@ import           Servant.Flow
 
 
 data Transformation = ToUpper | ToLower
-    deriving (Show, Generic, ToJSON, FlowTyped)
+    deriving (Show, Generic, ToJSON, FromJSON, FlowTyped)
 
 instance FromHttpApiData Transformation where
     parseUrlPiece "ToUpper" = Right ToUpper
@@ -22,6 +22,7 @@ instance ToHttpApiData Transformation where
 
 type API = "capture"    :> CaptureAPI
       :<|> "queryparam" :> QueryParamAPI
+      :<|> "reqbody"    :> ReqBodyAPI
 
 type CaptureAPI
     =    Capture "int" Int              :> Get '[JSON] Int
@@ -32,14 +33,11 @@ type QueryParamAPI
     =    "int"   :> QueryParam "value" Int            :> Get '[JSON] Int
     :<|> "text"  :> QueryParam "value" Text           :> Get '[JSON] Text
     :<|> "trans" :> QueryParam "value" Transformation :> Get '[JSON] Transformation
--- Get '[JSON] Text
---      :<|> Capture "int" Int :> Get '[JSON] Int
---      :<|> "query" :> QueryParam '[JSON] Text :> Get '[JSON]
---        :> Capture "transformation" Transformation
---        :> QueryParam "maxChars" Int
---        :> QueryFlag "fromEnd"
---        :> Get '[JSON] Text
---    :<|> "user" :> ReqBody '[JSON] Text :> Post '[JSON] BigAssRecord
+
+type ReqBodyAPI
+    =    "int"   :> ReqBody '[JSON] Int            :> Post '[JSON] Int
+    :<|> "text"  :> ReqBody '[JSON] Text           :> Post '[JSON] Text
+    :<|> "trans" :> ReqBody '[JSON] Transformation :> Post '[JSON] Transformation
 
 
 data BigAssRecord = BAR

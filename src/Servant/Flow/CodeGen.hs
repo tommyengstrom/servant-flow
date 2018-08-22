@@ -170,7 +170,7 @@ renderFun req = do
                     line "params: opts"
                 unless (null $ req ^. reqBody) $ do
                     tell ","
-                    line "data: data"
+                    line "data: JSON.stringify(data)"
 
             pure ()
 

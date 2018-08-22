@@ -7,7 +7,9 @@ const client = axios.create({
         'Content-type': 'Application/json'},
     crossdomain: true})
 
-
+//
+// capture api
+//
 test('getCaptureByInt', () => api.getCaptureByInt(client, 66)
     .then(response => {
         expect(response.status).toBe(200)
@@ -26,6 +28,9 @@ test('getCaptureByTrans', () => api.getCaptureByText(client, "ToUpper")
         expect(response.data).toBe("ToUpper")
     }))
 
+//
+// query param api
+//
 test('getQueryparamInt', () => api.getQueryparamInt(client, {value: 66})
     .then(response => {
         expect(response.status).toBe(200)
@@ -39,6 +44,28 @@ test('getQueryparamText', () => api.getQueryparamText(client, {value: "howdy!"})
     }))
 
 test('getQueryparamTrans', () => api.getQueryparamTrans(client, {value: "ToUpper"})
+    .then(response => {
+        expect(response.status).toBe(200)
+        expect(response.data).toBe("ToUpper")
+    }))
+
+
+//
+// reqbody api
+//
+test('postReqbodyByInt', () => api.postReqbodyInt(client, 66)
+    .then(response => {
+        expect(response.status).toBe(200)
+        expect(response.data).toBe(66)
+    }))
+
+test('postReqbodyByText', () => api.postReqbodyText(client, "howdy!")
+    .then(response => {
+        expect(response.status).toBe(200)
+        expect(response.data).toBe("howdy!")
+    }))
+
+test('postReqbodyByTrans', () => api.postReqbodyTrans(client, "ToUpper")
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe("ToUpper")

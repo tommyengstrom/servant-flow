@@ -12,9 +12,14 @@ import Data.Maybe
 server :: Server API
 server = captureServer
     :<|> queryParamServer
+    :<|> reqBodyServer
 
 captureServer :: Server CaptureAPI
 captureServer = pure :<|> pure :<|> pure
+
+reqBodyServer :: Server ReqBodyAPI
+reqBodyServer = pure :<|> pure :<|> pure
+
 
 queryParamServer :: Server QueryParamAPI
 queryParamServer = pure . fromMaybe 42

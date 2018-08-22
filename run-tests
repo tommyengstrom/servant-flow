@@ -9,6 +9,7 @@ stack exec server &
 pid=$!
 cd js
 npm install
+npm run flow
 npm test
 kill $pid
 

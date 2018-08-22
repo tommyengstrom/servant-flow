@@ -189,10 +189,6 @@ instance (GSimpleSum f, GSimpleSum g) => GSimpleSum (f :+: g) where
 showLiteral :: Lit -> Text
 showLiteral (LitString txt) = fromString $ show txt
 
-
-renderFlowTypeInComment :: FlowType -> Text
-renderFlowTypeInComment t = "/* : " <> renderFlowType t <> " */"
-
 inParens :: Text -> Text
 inParens t = "(" <> t <> ")"
 

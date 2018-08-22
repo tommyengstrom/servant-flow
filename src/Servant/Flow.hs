@@ -44,16 +44,16 @@ import           Servant.Foreign
 
 data LangFlow
 
-instance FlowTyped a => HasForeignType LangFlow FlowType a where
-    typeFor _ _ = flowType
+instance FlowTyped a => HasForeignType LangFlow FlowTypeInfo a where
+    typeFor _ _ = flowTypeInfo
 
-getEndpoints :: ( HasForeign LangFlow FlowType api
-                , GenerateList FlowType (Foreign FlowType api))
-               => Proxy api -> [Req FlowType]
-getEndpoints = listFromAPI (Proxy @LangFlow) (Proxy @FlowType)
+getEndpoints :: ( HasForeign LangFlow FlowTypeInfo api
+                , GenerateList FlowTypeInfo (Foreign FlowTypeInfo api))
+               => Proxy api -> [Req FlowTypeInfo]
+getEndpoints = listFromAPI (Proxy @LangFlow) (Proxy @FlowTypeInfo)
 
-generateFlowClient :: ( HasForeign LangFlow FlowType api
-                      , GenerateList FlowType (Foreign FlowType api))
+generateFlowClient :: ( HasForeign LangFlow FlowTypeInfo api
+                      , GenerateList FlowTypeInfo (Foreign FlowTypeInfo api))
                    => Proxy api -> CodeGenOptions -> Text
 generateFlowClient apiProxy opts
     = execCodeGen opts

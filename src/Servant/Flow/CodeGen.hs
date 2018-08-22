@@ -64,14 +64,17 @@ indentLess :: CodeGen ()
 indentLess = modify (\i -> max (i -1) 0)
 
 
-renderArg :: Arg FlowType -> Text
+renderFlowTypeInComment :: FlowTypeInfo -> Text
+renderFlowTypeInComment t = "/* : " <> renderFlowType (forgetNames t) <> " */"
+
+renderArg :: Arg FlowTypeInfo -> Text
 renderArg (Arg (PathSegment name) t) = name <> " " <> renderFlowTypeInComment t
 
-renderFlowTypeOneLine :: FlowType -> Text
-renderFlowTypeOneLine = T.replace "\n" " " . renderFlowType
+renderFlowTypeOneLine :: FlowTypeInfo -> Text
+renderFlowTypeOneLine = T.replace "\n" " " . renderFlowType . forgetNames
 
 
-renderArgNoComment :: Arg FlowType -> Text
+renderArgNoComment :: Arg FlowTypeInfo -> Text
 renderArgNoComment (Arg (PathSegment name) t) = name <> " : " <> renderFlowTypeOneLine t
 
 getCaptureArgs :: Req a -> [Arg a]
@@ -100,6 +103,7 @@ block g = do
         line "}"
         pure a
 
+
 renderClientFunction :: CodeGen ()
 renderClientFunction = do
     line "function createClient"
@@ -115,26 +119,26 @@ renderClientFunction = do
             line "baseURL: baseURL"
     line "module.exports.createClient = createClient"
 
-getFuncName :: Req FlowType -> CodeGen Text
+getFuncName :: Req FlowTypeInfo -> CodeGen Text
 getFuncName req = do
     f <- asks cgRenderFunctionName
     pure . f $ req ^. reqFuncName
 
-renderEndpointFunction :: Req FlowType -> CodeGen ()
+renderEndpointFunction :: Req FlowTypeInfo -> CodeGen ()
 renderEndpointFunction req = do
     funName <- getFuncName req
     line $ "function " <> funName
     parens renderAllArgs
-    tell . renderFlowTypeInComment . fromMaybe (Prim Any) $ _reqReturnType req
+    tell . renderFlowTypeInComment . fromMaybe primAny $ _reqReturnType req
     block renderBody
     line $ "module.exports." <> funName <> " = " <> funName
     where
         -- Captures and request body
-        args :: [Arg FlowType]
+        args :: [Arg FlowTypeInfo]
         args = (getCaptureArgs req)
             <> maybe [] (\t -> [Arg (PathSegment "data") t]) (req ^. reqBody)
 
-        qParams :: [Arg FlowType]
+        qParams :: [Arg FlowTypeInfo]
         qParams = getQueryArgs req
 
         renderAllArgs :: CodeGen ()
@@ -147,7 +151,7 @@ renderEndpointFunction req = do
                 block $ renderArgs False qParams
                 tell " */"
 
-        renderArgs :: Bool -> [Arg FlowType] -> CodeGen ()
+        renderArgs :: Bool -> [Arg FlowTypeInfo] -> CodeGen ()
         renderArgs _ []     = pure ()
         renderArgs inComment (a:as) = do
             if inComment
@@ -172,7 +176,7 @@ renderEndpointFunction req = do
                     tell ","
                     line "data: data"
 
-        renderUrl :: [Segment FlowType] -> CodeGen ()
+        renderUrl :: [Segment FlowTypeInfo] -> CodeGen ()
         renderUrl []     = pure ()
         renderUrl (Segment (Cap (Arg (PathSegment n) _)):ss) = do
             line $ "encodeURIComponent(" <> n <> ")"
@@ -183,7 +187,7 @@ renderEndpointFunction req = do
             unless (null ss) $ tell ","
             renderUrl ss
 
-renderFullClient :: [Req FlowType] -> CodeGen ()
+renderFullClient :: [Req FlowTypeInfo] -> CodeGen ()
 renderFullClient endpoints = do
     activateFlow <- asks cgActivateFlow
     when activateFlow $ tell "// @flow \n\n"
@@ -193,3 +197,8 @@ renderFullClient endpoints = do
 
 renderTypeDef :: Text -> FlowType -> Text
 renderTypeDef tyName ty = "type " <> tyName <> " = " <> renderFlowType ty
+
+
+getAllTypes :: Req flowTy -> [flowTy]
+getAllTypes r = catMaybes [_reqBody r, _reqReturnType r]
+

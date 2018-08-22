@@ -195,10 +195,15 @@ renderFullClient endpoints = do
         renderEndpointFunction endpoint
         tell "\n\n"
 
-renderTypeDef :: Text -> FlowType -> Text
-renderTypeDef tyName ty = "type " <> tyName <> " = " <> renderFlowType ty
+renderTypeDef :: Text -> FlowTypeRef -> Text
+renderTypeDef tyName ty = "type " <> tyName <> " = " <> renderFlowTypeWithReferences ty
 
 
 getAllTypes :: Req flowTy -> [flowTy]
 getAllTypes r = catMaybes [_reqBody r, _reqReturnType r]
 
+renderTypeDefs :: [Req FlowTypeInfo] -> CodeGen ()
+renderTypeDefs endpoints = do
+    forM_ (endpoints >>= getAllTypes >>= getRefEnv) $ \(name, ty) -> do
+        tell $ renderTypeDef name ty
+        tell "\n\n"

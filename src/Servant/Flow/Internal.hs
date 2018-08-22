@@ -48,7 +48,7 @@ data PropertyF a
     -- | A regular object field
     = Property Text a
     -- | A 'Map'-like field with a specific key type.
-    | IndexerProperty a a -- like a 'Map'
+    | IndexerProperty a a
     deriving (Show, Eq, Functor, Traversable, Foldable)
     -- NamedIndexerProperty Text a a  -- Carries a simple comment-like annotation
 
@@ -202,6 +202,16 @@ inSuperBrackets t = "{| " <> t <> " |}"
 renderFlowType :: FlowType -> Text
 renderFlowType = catamap renderFlowTypeF
 
+renderFlowTypeF :: Algebra FlowTypeF Text
+renderFlowTypeF (Prim_ prim)     = renderPrimative prim
+renderFlowTypeF (Nullable_ t)    = "?" <> inParens t
+renderFlowTypeF (Array_ a)       = inParens a <> "[]"
+renderFlowTypeF (Sum_ l)         = T.intercalate " | " l
+renderFlowTypeF (Literal_ lit)   = showLiteral lit
+renderFlowTypeF (Object_ ps)     = inBrackets . T.intercalate ", " $ renderProperty <$> ps
+renderFlowTypeF (ExactObject_ l) = inSuperBrackets . T.intercalate ", " $
+    (\(n, t) -> n <> " : " <> t) <$> l
+
 renderPrimative :: PrimType -> Text
 renderPrimative Boolean   = "boolean"
 renderPrimative Number    = "number"
@@ -214,15 +224,13 @@ renderProperty :: Algebra PropertyF Text
 renderProperty (Property fieldName ty)    = fieldName <> ": " <> ty
 renderProperty (IndexerProperty keyTy ty) = "[" <> keyTy <> "]: " <> ty
 
-renderFlowTypeF :: Algebra FlowTypeF Text
-renderFlowTypeF (Prim_ prim)     = renderPrimative prim
-renderFlowTypeF (Nullable_ t)    = "?" <> inParens t
-renderFlowTypeF (Array_ a)       = inParens a <> "[]"
-renderFlowTypeF (Sum_ l)         = T.intercalate " | " l
-renderFlowTypeF (Literal_ lit)   = showLiteral lit
-renderFlowTypeF (Object_ ps)     = inBrackets . T.intercalate ", " $ renderProperty <$> ps
-renderFlowTypeF (ExactObject_ l) = inSuperBrackets . T.intercalate ", " $
-    (\(n, t) -> n <> " : " <> t) <$> l
+renderFlowTypeWithReferences :: FlowTypeRef -> Text
+renderFlowTypeWithReferences = cata renderFlowTypeRefF
+
+renderFlowTypeRefF :: Algebra (FlowTypeF :+: Ref) Text
+renderFlowTypeRefF (L1 ty)      = renderFlowTypeF ty
+renderFlowTypeRefF (R1 (Ref n)) = n
+
 
 
 
@@ -246,20 +254,37 @@ named n = Fix . R1 . Named n
 withName :: Text -> FlowType -> FlowTypeInfo
 withName n = named n . nameless
 
-renderFlowTypeWithRefsF :: Algebra FlowTypeInfoF Text
-renderFlowTypeWithRefsF (L1 ty) = renderFlowTypeF ty
-renderFlowTypeWithRefsF (R1 n)  = namedName n
-
 
 type Env = [(Text, FlowTypeInfo)]
+
+getEnv :: FlowTypeInfo -> Env
+getEnv = para getEnvR
 
 getEnvR :: RAlgebra FlowTypeInfoF Env
 getEnvR (L1 fpair) = snd =<< toList fpair
 getEnvR (R1 n)     = [(namedName n, fst $ namedBody n)]
 
-getEnv :: FlowTypeInfo -> Env
-getEnv = para getEnvR
 
+type RefEnv = [(Text, FlowTypeRef)]
+
+getRefEnv :: FlowTypeInfo -> RefEnv
+getRefEnv = fmap (fmap toReferenced) . getEnv
+
+
+-- | A Reference to a defined flow type. Differs from 'Named' in that it does not also
+--   keep the value of the referenced type expression.
+newtype Ref a = Ref Text deriving Functor
+
+type FlowTypeRef = Fix (FlowTypeF :+: Ref)
+
+-- | Drop any 'Named' subexpressions and instead just keep the 'Ref' to the type.
+--   This function is mutually recursive with 'toReferencedAlg'.
+toReferenced :: FlowTypeInfo -> FlowTypeRef
+toReferenced = para toReferencedAlg
+
+toReferencedAlg :: RAlgebra FlowTypeInfoF FlowTypeRef
+toReferencedAlg (R1 n)     = Fix . R1 . Ref $ namedName n
+toReferencedAlg (L1 infoF) = Fix $ toReferenced . fst <$> (L1 infoF)
 
 
 primBoolean, primNumber, primString, primAny, primAnyObject, primVoid :: FlowTypeInfo

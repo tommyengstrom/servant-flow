@@ -4,7 +4,7 @@ import           Data.Aeson
 import           Data.Text             (Text)
 import           GHC.Generics          (Generic)
 import           Servant
-import           Servant.Flow.FlowType
+import           Servant.Flow
 
 
 data Transformation = ToUpper | ToLower
@@ -20,12 +20,21 @@ instance ToHttpApiData Transformation where
     toUrlPiece ToLower = "ToLower"
 
 
-type API = "changeCase"
-        :> Capture "transformation" Transformation
-        :> QueryParam "maxChars" Int
-        :> QueryFlag "fromEnd"
-        :> Get '[JSON] Text
-    :<|> "user" :> ReqBody '[JSON] Text :> Post '[JSON] BigAssRecord
+type API = "capture" :> CaptureAPI
+
+type CaptureAPI
+    =    Capture "int" Int                       :> Get '[JSON] Int
+    :<|> Capture "text" Text                     :> Get '[JSON] Text
+    :<|> Capture "Transformation" Transformation :> Get '[JSON] Transformation
+
+-- Get '[JSON] Text
+--      :<|> Capture "int" Int :> Get '[JSON] Int
+--      :<|> "query" :> QueryParam '[JSON] Text :> Get '[JSON]
+--        :> Capture "transformation" Transformation
+--        :> QueryParam "maxChars" Int
+--        :> QueryFlag "fromEnd"
+--        :> Get '[JSON] Text
+--    :<|> "user" :> ReqBody '[JSON] Text :> Post '[JSON] BigAssRecord
 
 
 data BigAssRecord = BAR

@@ -20,13 +20,18 @@ instance ToHttpApiData Transformation where
     toUrlPiece ToLower = "ToLower"
 
 
-type API = "capture" :> CaptureAPI
+type API = "capture"    :> CaptureAPI
+      :<|> "queryparam" :> QueryParamAPI
 
 type CaptureAPI
-    =    Capture "int" Int                       :> Get '[JSON] Int
-    :<|> Capture "text" Text                     :> Get '[JSON] Text
-    :<|> Capture "Transformation" Transformation :> Get '[JSON] Transformation
+    =    Capture "int" Int              :> Get '[JSON] Int
+    :<|> Capture "text" Text            :> Get '[JSON] Text
+    :<|> Capture "trans" Transformation :> Get '[JSON] Transformation
 
+type QueryParamAPI
+    =    "int"   :> QueryParam "value" Int            :> Get '[JSON] Int
+    :<|> "text"  :> QueryParam "value" Text           :> Get '[JSON] Text
+    :<|> "trans" :> QueryParam "value" Transformation :> Get '[JSON] Transformation
 -- Get '[JSON] Text
 --      :<|> Capture "int" Int :> Get '[JSON] Int
 --      :<|> "query" :> QueryParam '[JSON] Text :> Get '[JSON]

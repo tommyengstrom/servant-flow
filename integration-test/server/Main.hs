@@ -7,12 +7,19 @@ import           Network.Wai.Middleware.Cors
 import           Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import           Servant
 import           TestAPI
+import Data.Maybe
 
 server :: Server API
 server = captureServer
+    :<|> queryParamServer
 
 captureServer :: Server CaptureAPI
 captureServer = pure :<|> pure :<|> pure
+
+queryParamServer :: Server QueryParamAPI
+queryParamServer = pure . fromMaybe 42
+              :<|> pure . fromMaybe "def"
+              :<|> pure . fromMaybe ToUpper
 --     :<|> user
 --
 -- changeCase :: Transformation -> Maybe Int -> Bool -> Handler Text

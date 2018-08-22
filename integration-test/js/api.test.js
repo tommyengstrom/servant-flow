@@ -14,13 +14,31 @@ test('getCaptureByInt', () => api.getCaptureByInt(client, 66)
         expect(response.data).toBe(66)
     }))
 
-test('getCaptureByText', () => api.getCaptureByInt(client, "howdy!")
+test('getCaptureByText', () => api.getCaptureByText(client, "howdy!")
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe("howdy!")
     }))
 
-test('getCaptureByTransformation', () => api.getCaptureByInt(client, "ToUpper")
+test('getCaptureByTrans', () => api.getCaptureByText(client, "ToUpper")
+    .then(response => {
+        expect(response.status).toBe(200)
+        expect(response.data).toBe("ToUpper")
+    }))
+
+test('getQueryparamInt', () => api.getQueryparamInt(client, {value: 66})
+    .then(response => {
+        expect(response.status).toBe(200)
+        expect(response.data).toBe(66)
+    }))
+
+test('getQueryparamText', () => api.getQueryparamText(client, {value: "howdy!"})
+    .then(response => {
+        expect(response.status).toBe(200)
+        expect(response.data).toBe("howdy!")
+    }))
+
+test('getQueryparamTrans', () => api.getQueryparamTrans(client, {value: "ToUpper"})
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe("ToUpper")

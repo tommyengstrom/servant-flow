@@ -12,7 +12,8 @@ main = do
     path <- case args of
         [p] -> pure p
         _   -> error "Must be called with output path"
-    let clientCode = generateClientFunction defaultCodeGenOptions
+    let clientCode = "// @flow\n\n"
+                  <> generateClientFunction defaultCodeGenOptions
                   <> "\n\n"
                   <> generateFlowClient (Proxy @API) defaultCodeGenOptions
     T.writeFile path clientCode

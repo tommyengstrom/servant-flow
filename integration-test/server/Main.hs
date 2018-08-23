@@ -17,15 +17,15 @@ server = captureServer
 captureServer :: Server CaptureAPI
 captureServer = pure :<|> pure :<|> pure :<|> pure
 
-reqBodyServer :: Server ReqBodyAPI
-reqBodyServer = pure :<|> pure :<|> pure :<|> pure
-
-
 queryParamServer :: Server QueryParamAPI
 queryParamServer = pure . fromMaybe 42
               :<|> pure . fromMaybe ""
               :<|> pure . fromMaybe False
               :<|> pure . fromMaybe ToUpper
+
+reqBodyServer :: Server ReqBodyAPI
+reqBodyServer = pure :<|> pure :<|> pure :<|> pure :<|> pure
+
 --     :<|> user
 --
 -- changeCase :: Transformation -> Maybe Int -> Bool -> Handler Text

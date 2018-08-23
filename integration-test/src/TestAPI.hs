@@ -41,11 +41,11 @@ type ReqBodyAPI
     :<|> "text"  :> ReqBody '[JSON] Text           :> Post '[JSON] Text
     :<|> "bool"  :> ReqBody '[JSON] Bool           :> Post '[JSON] Bool
     :<|> "trans" :> ReqBody '[JSON] Transformation :> Post '[JSON] Transformation
-
+    :<|> "bar"   :> ReqBody '[JSON] BigAssRecord   :> Post '[JSON] BigAssRecord
 
 data BigAssRecord = BAR
     { barFoo            :: Int
     , barBool           :: Bool
     , barTransformation :: Transformation
     -- , barTime           :: UTCTime
-    } deriving (Show, Generic, ToJSON, FlowTyped)
+    } deriving (Show, Generic, FromJSON, ToJSON, FlowTyped)

@@ -55,6 +55,7 @@ test('getQueryparamBool', () => api.getQueryparamBool(client, {value: true})
         expect(response.data).toBe(true)
     }))
 
+
 test('getQueryparamTrans', () => api.getQueryparamTrans(client, {value: "ToUpper"})
     .then(response => {
         expect(response.status).toBe(200)
@@ -87,5 +88,14 @@ test('postReqbodyByTrans', () => api.postReqbodyTrans(client, "ToUpper")
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe("ToUpper")
+    }))
+
+let bar = { barFoo: 8, barBool: true, barTransformation: "ToUpper" }
+
+
+test('postReqbodyByBar', () => api.postReqbodyBar(client, bar)
+    .then(response => {
+        expect(response.status).toBe(200)
+        expect(response.data).toEqual(bar)
     }))
 

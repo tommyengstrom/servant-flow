@@ -25,18 +25,21 @@ type API = "capture"    :> CaptureAPI
       :<|> "reqbody"    :> ReqBodyAPI
 
 type CaptureAPI
-    =    Capture "int" Int              :> Get '[JSON] Int
-    :<|> Capture "text" Text            :> Get '[JSON] Text
-    :<|> Capture "trans" Transformation :> Get '[JSON] Transformation
+    =    "int"   :> Capture "int" Int              :> Get '[JSON] Int
+    :<|> "text"  :> Capture "text" Text            :> Get '[JSON] Text
+    :<|> "bool"  :> Capture "bool" Bool            :> Get '[JSON] Bool
+    :<|> "trans" :> Capture "trans" Transformation :> Get '[JSON] Transformation
 
 type QueryParamAPI
     =    "int"   :> QueryParam "value" Int            :> Get '[JSON] Int
     :<|> "text"  :> QueryParam "value" Text           :> Get '[JSON] Text
+    :<|> "bool"  :> QueryParam "value" Bool           :> Get '[JSON] Bool
     :<|> "trans" :> QueryParam "value" Transformation :> Get '[JSON] Transformation
 
 type ReqBodyAPI
     =    "int"   :> ReqBody '[JSON] Int            :> Post '[JSON] Int
     :<|> "text"  :> ReqBody '[JSON] Text           :> Post '[JSON] Text
+    :<|> "bool"  :> ReqBody '[JSON] Bool           :> Post '[JSON] Bool
     :<|> "trans" :> ReqBody '[JSON] Transformation :> Post '[JSON] Transformation
 
 

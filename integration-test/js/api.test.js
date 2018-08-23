@@ -10,19 +10,25 @@ const client = axios.create({
 //
 // capture api
 //
-test('getCaptureByInt', () => api.getCaptureByInt(client, 66)
+test('getCaptureIntByInt', () => api.getCaptureIntByInt(client, 66)
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe(66)
     }))
 
-test('getCaptureByText', () => api.getCaptureByText(client, "howdy!")
+test('getCaptureTextByText', () => api.getCaptureTextByText(client, "howdy!")
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe("howdy!")
     }))
 
-test('getCaptureByTrans', () => api.getCaptureByText(client, "ToUpper")
+test('getCaptureBoolByBool', () => api.getCaptureBoolByBool(client, true)
+    .then(response => {
+        expect(response.status).toBe(200)
+        expect(response.data).toBe(true)
+    }))
+
+test('getCaptureTransByTrans', () => api.getCaptureTextByText(client, "ToUpper")
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe("ToUpper")
@@ -41,6 +47,12 @@ test('getQueryparamText', () => api.getQueryparamText(client, {value: "howdy!"})
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe("howdy!")
+    }))
+
+test('getQueryparamBool', () => api.getQueryparamBool(client, {value: true})
+    .then(response => {
+        expect(response.status).toBe(200)
+        expect(response.data).toBe(true)
     }))
 
 test('getQueryparamTrans', () => api.getQueryparamTrans(client, {value: "ToUpper"})
@@ -63,6 +75,12 @@ test('postReqbodyByText', () => api.postReqbodyText(client, "howdy!")
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe("howdy!")
+    }))
+
+test('postReqbodyByBool', () => api.postReqbodyBool(client, true)
+    .then(response => {
+        expect(response.status).toBe(200)
+        expect(response.data).toBe(true)
     }))
 
 test('postReqbodyByTrans', () => api.postReqbodyTrans(client, "ToUpper")

@@ -15,15 +15,16 @@ server = captureServer
     :<|> reqBodyServer
 
 captureServer :: Server CaptureAPI
-captureServer = pure :<|> pure :<|> pure
+captureServer = pure :<|> pure :<|> pure :<|> pure
 
 reqBodyServer :: Server ReqBodyAPI
-reqBodyServer = pure :<|> pure :<|> pure
+reqBodyServer = pure :<|> pure :<|> pure :<|> pure
 
 
 queryParamServer :: Server QueryParamAPI
 queryParamServer = pure . fromMaybe 42
-              :<|> pure . fromMaybe "def"
+              :<|> pure . fromMaybe ""
+              :<|> pure . fromMaybe False
               :<|> pure . fromMaybe ToUpper
 --     :<|> user
 --

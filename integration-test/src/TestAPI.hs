@@ -37,15 +37,21 @@ type QueryParamAPI
     :<|> "trans" :> QueryParam "value" Transformation :> Get '[JSON] Transformation
 
 type ReqBodyAPI
-    =    "int"   :> ReqBody '[JSON] Int            :> Post '[JSON] Int
-    :<|> "text"  :> ReqBody '[JSON] Text           :> Post '[JSON] Text
-    :<|> "bool"  :> ReqBody '[JSON] Bool           :> Post '[JSON] Bool
-    :<|> "trans" :> ReqBody '[JSON] Transformation :> Post '[JSON] Transformation
-    :<|> "bar"   :> ReqBody '[JSON] BigAssRecord   :> Post '[JSON] BigAssRecord
+    =    "int"   :> ReqBody '[JSON] Int             :> Post '[JSON] Int
+    :<|> "text"  :> ReqBody '[JSON] Text            :> Post '[JSON] Text
+    :<|> "bool"  :> ReqBody '[JSON] Bool            :> Post '[JSON] Bool
+    :<|> "trans" :> ReqBody '[JSON] Transformation  :> Post '[JSON] Transformation
+    :<|> "bar"   :> ReqBody '[JSON] BigAssRecord    :> Post '[JSON] BigAssRecord
+    :<|> "rr"    :> ReqBody '[JSON] RecursiveRecord :> Post '[JSON] RecursiveRecord
 
 data BigAssRecord = BAR
     { barFoo            :: Int
     , barBool           :: Bool
     , barTransformation :: Transformation
     -- , barTime           :: UTCTime
+    } deriving (Show, Generic, FromJSON, ToJSON, FlowTyped)
+
+data RecursiveRecord = RR
+    { rrRec :: Maybe RecursiveRecord
+    , rrValue :: Text
     } deriving (Show, Generic, FromJSON, ToJSON, FlowTyped)

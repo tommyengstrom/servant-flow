@@ -24,7 +24,7 @@ queryParamServer = pure . fromMaybe 42
               :<|> pure . fromMaybe ToUpper
 
 reqBodyServer :: Server ReqBodyAPI
-reqBodyServer = pure :<|> pure :<|> pure :<|> pure :<|> pure
+reqBodyServer = pure :<|> pure :<|> pure :<|> pure :<|> pure :<|> pure
 
 --     :<|> user
 --

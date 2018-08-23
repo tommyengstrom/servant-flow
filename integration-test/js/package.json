@@ -12,7 +12,8 @@
   "dependencies": {
     "axios": "^0.18.0",
     "flow-runtime": "^0.17.0",
-    "jest": "^23.2.0"
+    "flow-typed": "^2.5.1",
+    "jest": "^23.5.0"
   },
   "devDependencies": {
     "flow-remove-types": "^1.2.3",

@@ -5,3 +5,4 @@ ctags
 integration-test.cabal
 node_modules
 integration-test/js/api.js
+integration-test/js/flow-typed

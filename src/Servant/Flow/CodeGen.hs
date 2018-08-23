@@ -120,12 +120,13 @@ getFuncName req = do
     f <- asks cgRenderFunctionName
     pure . f $ req ^. reqFuncName
 
+
 renderFun :: Req FlowType -> CodeGen ()
 renderFun req = do
     funName <- getFuncName req
     line $ "function " <> funName
     parens renderAllArgs
-    tell . renderFlowTypeInComment . fromMaybe (Fix $ Prim Any) $ _reqReturnType req
+    renderReturnType
     block renderBody
     line $ "module.exports." <> funName <> " = " <> funName
     where
@@ -136,6 +137,16 @@ renderFun req = do
 
         qParams :: [Arg FlowType]
         qParams = getQueryArgs req
+
+        renderReturnType :: CodeGen ()
+        renderReturnType =
+            let mkResponse t = Fix $ Promise . Fix
+                             $ Object [Property "status" primString, Property "data" t]
+             in tell . renderFlowTypeInComment
+                     . mkResponse
+                     . fromMaybe (Fix $ Prim Void)
+                     $ _reqReturnType req
+
 
         renderAllArgs :: CodeGen ()
         renderAllArgs  = do

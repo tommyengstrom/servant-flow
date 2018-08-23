@@ -156,6 +156,7 @@ data FlowTypeF a
     | Sum [a]   -- "Union" in Flow terminology
     | Literal Lit
     | Object [PropertyF a]
+    | Promise a
     deriving (Show, Eq, Functor, Traversable, Foldable)
 
 data Lit
@@ -219,3 +220,4 @@ renderFlowTypeF (Literal lit)   = showLiteral lit
 renderFlowTypeF (Object ps)     = inBrackets . T.intercalate ", " $ renderProperty <$> ps
 renderFlowTypeF (ExactObject l) = inSuperBrackets . T.intercalate ", " $
     (\(n, t) -> n <> " : " <> t) <$> l
+renderFlowTypeF (Promise t)     = "Promise<" <> t <> ">"

@@ -232,6 +232,11 @@ renderFlowTypeRefF (L1 ty)      = renderFlowTypeF ty
 renderFlowTypeRefF (R1 (Ref n)) = n
 
 
+data Rendering = Flattened | Referenced
+
+renderType :: Rendering -> FlowTypeInfo -> Text
+renderType Flattened  = renderFlowType . forgetNames
+renderType Referenced = renderFlowTypeWithReferences . toReferenced
 
 
 forgetNamesF :: Algebra (FlowTypeF :+: Named) FlowType

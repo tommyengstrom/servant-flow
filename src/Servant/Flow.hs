@@ -8,11 +8,11 @@ module Servant.Flow
     , renderFlowType
     , FlowObjectKey
 
-    -- ** Names and functions for converting FlowTypeInfo
-    , nameless, withName, named
-
     -- ** FlowTypeInfo for primative types
     , primBoolean, primNumber, primString, primAny, primAnyObject, primVoid
+
+    -- ** Names and functions for converting FlowTypeInfo
+    , nameless, withName, named
 
     -- ** Code generation
     , CodeGenOptions (..)
@@ -57,7 +57,7 @@ generateFlowClient :: ( HasForeign LangFlow FlowTypeInfo api
                    => Proxy api -> CodeGenOptions -> Text
 generateFlowClient apiProxy opts
     = execCodeGen opts
-    . renderFullClient
+    . renderFullClientWithDefs
     $ getEndpoints apiProxy
 
 generateClientFunction :: CodeGenOptions -> Text

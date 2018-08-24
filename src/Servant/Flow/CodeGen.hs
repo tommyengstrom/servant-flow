@@ -3,6 +3,8 @@ module Servant.Flow.CodeGen where
 import           Control.Lens
 import           Control.Monad.Reader
 import           Control.Monad.RWS     hiding (Any)
+import           Data.Function         (on)
+import           Data.List
 import           Data.Maybe
 import           Data.Monoid           ((<>))
 import           Data.Text             (Text)
@@ -64,18 +66,18 @@ indentLess :: CodeGen ()
 indentLess = modify (\i -> max (i -1) 0)
 
 
-renderFlowTypeInComment :: FlowTypeInfo -> Text
-renderFlowTypeInComment t = "/* : " <> renderFlowType (forgetNames t) <> " */"
+renderFlowTypeInComment :: Rendering -> FlowTypeInfo -> Text
+renderFlowTypeInComment r ty = "/* : " <> renderType r ty <> " */"
 
-renderArg :: Arg FlowTypeInfo -> Text
-renderArg (Arg (PathSegment name) t) = name <> " " <> renderFlowTypeInComment t
+renderArg :: Rendering -> Arg FlowTypeInfo -> Text
+renderArg r (Arg (PathSegment name) t) = name <> " " <> renderFlowTypeInComment r t
 
-renderFlowTypeOneLine :: FlowTypeInfo -> Text
-renderFlowTypeOneLine = T.replace "\n" " " . renderFlowType . forgetNames
+renderFlowTypeOneLine :: Rendering -> FlowTypeInfo -> Text
+renderFlowTypeOneLine r = T.replace "\n" " " . renderType r
 
 
-renderArgNoComment :: Arg FlowTypeInfo -> Text
-renderArgNoComment (Arg (PathSegment name) t) = name <> " : " <> renderFlowTypeOneLine t
+renderArgNoComment :: Rendering -> Arg FlowTypeInfo -> Text
+renderArgNoComment r (Arg (PathSegment name) t) = name <> " : " <> renderFlowTypeOneLine r t
 
 getCaptureArgs :: Req a -> [Arg a]
 getCaptureArgs req = catMaybes . fmap getArg $ req ^. reqUrl . path
@@ -124,12 +126,12 @@ getFuncName req = do
     f <- asks cgRenderFunctionName
     pure . f $ req ^. reqFuncName
 
-renderEndpointFunction :: Req FlowTypeInfo -> CodeGen ()
-renderEndpointFunction req = do
+renderEndpointFunction :: Rendering -> Req FlowTypeInfo -> CodeGen ()
+renderEndpointFunction r req = do
     funName <- getFuncName req
     line $ "function " <> funName
     parens renderAllArgs
-    tell . renderFlowTypeInComment . fromMaybe primAny $ _reqReturnType req
+    tell . renderFlowTypeInComment r . fromMaybe primAny $ _reqReturnType req
     block renderBody
     line $ "module.exports." <> funName <> " = " <> funName
     where
@@ -155,8 +157,8 @@ renderEndpointFunction req = do
         renderArgs _ []     = pure ()
         renderArgs inComment (a:as) = do
             if inComment
-                then line $ renderArg a
-                else line $ renderArgNoComment a
+                then line $ renderArg r a
+                else line $ renderArgNoComment r a
             unless (null as) $ tell ","
             renderArgs inComment as
 
@@ -187,13 +189,24 @@ renderEndpointFunction req = do
             unless (null ss) $ tell ","
             renderUrl ss
 
-renderFullClient :: [Req FlowTypeInfo] -> CodeGen ()
-renderFullClient endpoints = do
+renderFullClient :: Rendering -> [Req FlowTypeInfo] -> CodeGen ()
+renderFullClient r endpoints = do
     activateFlow <- asks cgActivateFlow
     when activateFlow $ tell "// @flow \n\n"
     forM_ endpoints $ \endpoint -> do
-        renderEndpointFunction endpoint
+        renderEndpointFunction r endpoint
         tell "\n\n"
+
+renderFullClientWithDefs :: [Req FlowTypeInfo] -> CodeGen ()
+renderFullClientWithDefs endpoints = do
+    renderFullClient Referenced endpoints
+    tell "\n\n"
+    renderTypeDefs endpoints
+
+renderTypeDefs :: [Req FlowTypeInfo] -> CodeGen ()
+renderTypeDefs endpoints =
+    forM_ (nubBy ((==) `on` fst) $ endpoints >>= getAllTypes >>= getRefEnv)
+        $ \(name, ty) -> tell $ renderTypeDef name ty <> "\n\n"
 
 renderTypeDef :: Text -> FlowTypeRef -> Text
 renderTypeDef tyName ty = "type " <> tyName <> " = " <> renderFlowTypeWithReferences ty
@@ -202,8 +215,3 @@ renderTypeDef tyName ty = "type " <> tyName <> " = " <> renderFlowTypeWithRefere
 getAllTypes :: Req flowTy -> [flowTy]
 getAllTypes r = catMaybes [_reqBody r, _reqReturnType r]
 
-renderTypeDefs :: [Req FlowTypeInfo] -> CodeGen ()
-renderTypeDefs endpoints = do
-    forM_ (endpoints >>= getAllTypes >>= getRefEnv) $ \(name, ty) -> do
-        tell $ renderTypeDef name ty
-        tell "\n\n"

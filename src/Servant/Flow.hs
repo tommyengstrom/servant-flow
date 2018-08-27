@@ -21,6 +21,7 @@ module Servant.Flow
     , generateClientFunction
     , getEndpoints
     , generateFlowClient
+    , generateEndpoints
 
     -- ** Aeson rexports
     , Options (..)
@@ -58,6 +59,14 @@ generateFlowClient :: ( HasForeign LangFlow FlowTypeInfo api
 generateFlowClient apiProxy opts
     = execCodeGen opts
     . renderFullClientWithDefs
+    $ getEndpoints apiProxy
+
+generateEndpoints :: ( HasForeign LangFlow FlowTypeInfo api
+                     , GenerateList FlowTypeInfo (Foreign FlowTypeInfo api))
+                  => Proxy api -> CodeGenOptions -> Rendering -> Text
+generateEndpoints apiProxy opts rend
+    = execCodeGen opts
+    . renderFullClient rend
     $ getEndpoints apiProxy
 
 generateClientFunction :: CodeGenOptions -> Text

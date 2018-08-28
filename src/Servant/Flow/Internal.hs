@@ -79,7 +79,7 @@ class FlowTyped a where
 
 genericFlowType :: forall a. (Generic a, GFlowTyped (Rep a))
                 => Options -> Proxy a -> FlowTypeInfo
-genericFlowType opts _ = nameless $ gFlowType opts (from (undefined :: a))
+genericFlowType opts _ = gFlowType opts (from (undefined :: a))
 
 
 -- Primative instances
@@ -128,7 +128,7 @@ instance (Ord k, FlowObjectKey k, FlowTyped a) => FlowTyped (Map k a) where
         [IndexerProperty (nameless $ Prim String) $ flowTypeInfo (Proxy @a)]
 
 
--- | Arbitrary types cannot be object keys but need some reasonable textual representation
+-- | Arbitrary types cannot be object keys but need string representation
 --   "Data.Aeson.ToJSONKey" has more complex functionality than we support.
 class FlowObjectKey a
 
@@ -138,31 +138,31 @@ instance FlowObjectKey Text
 
 -- Generic instances
 class GFlowTyped f where
-    gFlowType :: Options -> f x -> FlowType
+    gFlowType :: Options -> f x -> FlowTypeInfo
 
 -- Single-constructor records
 instance GFlowRecordFields f => GFlowTyped (D1 m1 (C1 m2 f)) where
     gFlowType opts _
-        = ExactObject
+        = Fix . L1 . ExactObject_
         . fmap (first $ fromString . (fieldLabelModifier opts))
         $ recordFields (undefined :: f ())
 
 -- Simple sum types
 instance GSimpleSum (f :+: g) => GFlowTyped (D1 m (f :+: g)) where
-    gFlowType opts _ = Sum . fmap (Literal . LitString) $
+    gFlowType opts _ = Fix . L1 . Sum_ . fmap (Fix . L1 . Literal_ . LitString) $
         simpleSumOptions opts (undefined :: (f :+: g) ())
 
 -- Use an instance that already exists
 instance FlowTyped a => GFlowTyped (K1 i a) where
-    gFlowType _ _ = flowType (Proxy @a)
+    gFlowType _ _ = flowTypeInfo (Proxy @a)
 
 -- Record product type helper class
 class GFlowRecordFields f where
-    recordFields :: f x -> [(String, FlowType)]
+    recordFields :: f x -> [(String, FlowTypeInfo)]
 
 instance (FlowTyped a, Selector s) => GFlowRecordFields (S1 s (K1 R a)) where
     recordFields _ =
-        [(selName (undefined :: S1 s (K1 R a) ()) , flowType (Proxy @a))]
+        [(selName (undefined :: S1 s (K1 R a) ()) , flowTypeInfo (Proxy @a))]
 
 instance (GFlowRecordFields f, GFlowRecordFields g) => GFlowRecordFields (f :*: g) where
     recordFields _ = recordFields (undefined :: f ()) <> recordFields (undefined :: g ())
@@ -273,7 +273,7 @@ getEnvR (R1 (Named name (body,env))) = [(name, body)] <> env
 type RefEnv = [(Text, FlowTypeRef)]
 
 getRefEnv :: FlowTypeInfo -> RefEnv
-getRefEnv = fmap (fmap toReferenced) . getEnv
+getRefEnv = toRefEnv . getEnv
 
 
 -- | A Reference to a defined flow type. Differs from 'Named' in that it does not also
@@ -291,6 +291,8 @@ toReferencedAlg :: RAlgebra FlowTypeInfoF FlowTypeRef
 toReferencedAlg (R1 n)     = Fix . R1 . Ref $ namedName n
 toReferencedAlg (L1 infoF) = Fix $ toReferenced . fst <$> (L1 infoF)
 
+toRefEnv :: Env -> RefEnv
+toRefEnv = fmap . fmap $ toReferenced
 
 primBoolean, primNumber, primString, primAny, primAnyObject, primVoid :: FlowTypeInfo
 primBoolean   = nameless $ Prim Boolean

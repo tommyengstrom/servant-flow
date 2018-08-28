@@ -266,8 +266,8 @@ getEnv :: FlowTypeInfo -> Env
 getEnv = para getEnvR
 
 getEnvR :: RAlgebra FlowTypeInfoF Env
-getEnvR (L1 fpair) = snd =<< toList fpair
-getEnvR (R1 n)     = [(namedName n, fst $ namedBody n)]
+getEnvR (L1 fpair)                   = snd =<< toList fpair
+getEnvR (R1 (Named name (body,env))) = [(name, body)] <> env
 
 
 type RefEnv = [(Text, FlowTypeRef)]

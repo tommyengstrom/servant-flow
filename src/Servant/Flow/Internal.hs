@@ -1,5 +1,5 @@
 {-# LANGUAGE StrictData #-}
-
+{-# LANGUAGE RankNTypes #-}
 module Servant.Flow.Internal where
 
 import           Data.Aeson            (Options (..), defaultOptions)
@@ -21,9 +21,13 @@ import           Servant.API           (NoContent)
 class FlowTyped a where
     flowType :: Proxy a -> FlowType
 
-    default
-        flowType :: (Generic a, GFlowTyped (Rep a)) => Proxy a -> FlowType
+    default flowType :: (Generic a, GFlowTyped (Rep a)) => Proxy a -> FlowType
     flowType pa = genericFlowType defaultOptions pa
+
+    flowTypeName :: Proxy a -> Maybe Text
+
+    default flowTypeName :: (Generic a, GTypeName (Rep a)) => Proxy a -> Maybe Text
+    flowTypeName = genericFlowTypeName
 
 
 genericFlowType :: forall a. (Generic a, GFlowTyped (Rep a))
@@ -31,52 +35,76 @@ genericFlowType :: forall a. (Generic a, GFlowTyped (Rep a))
 genericFlowType opts _ = gFlowType opts (from (undefined :: a))
 
 
+genericFlowTypeName :: forall a. (Generic a, GTypeName (Rep a)) => Proxy a -> Maybe Text
+genericFlowTypeName _ = Just $ gtypename (from (undefined :: a))
+
+class GTypeName f where
+  gtypename :: f a -> Text
+
+instance (Datatype c) => GTypeName (M1 i c f) where
+  gtypename m = T.pack $ datatypeName m
+
 -- Primative instances
 instance FlowTyped Int where
     flowType _ = Fix $ Prim Number
+    flowTypeName _ = Nothing
 
 instance FlowTyped Int64 where
     flowType _ = Fix $ Prim Number
+    flowTypeName _ = Nothing
 
 instance FlowTyped Float where
     flowType _ = Fix $ Prim Number
+    flowTypeName _ = Nothing
 
 instance FlowTyped Double where
     flowType _ = Fix $ Prim Number
+    flowTypeName _ = Nothing
 
 instance FlowTyped Bool where
     flowType _ = Fix $ Prim Boolean
+    flowTypeName _ = Nothing
 
 instance FlowTyped Text where
     flowType _ = Fix $ Prim String
+    flowTypeName _ = Nothing
 
 instance FlowTyped String where
     flowType _ = Fix $ Prim String
+    flowTypeName _ = Nothing
 
 instance FlowTyped UTCTime where
     flowType _ = Fix $ Prim String
+    flowTypeName _ = Nothing
 
 instance FlowTyped Day where
     flowType _ = Fix $ Prim String
+    flowTypeName _ = Nothing
 
 instance FlowTyped LocalTime where
     flowType _ = Fix $ Prim String
+    flowTypeName _ = Nothing
 
 instance FlowTyped NoContent where
     flowType _ = Fix $ Prim Void
+    flowTypeName _ = Nothing
 
 
 instance FlowTyped a => FlowTyped (Maybe a) where
     flowType _ = Fix . Nullable $ flowType (Proxy @a)
+    flowTypeName _ = Nothing
 
 instance FlowTyped a => FlowTyped [a] where
     flowType _ = Fix . Array $ flowType (Proxy @a)
+    flowTypeName _ = Nothing
 
 instance (Ord a, FlowTyped a) => FlowTyped (Set a) where
     flowType _ = Fix . Array $ flowType (Proxy @a)
+    flowTypeName _ = Nothing
 
 instance (Ord k, FlowObjectKey k, FlowTyped a) => FlowTyped (Map k a) where
     flowType _ = Fix . Object $ [IndexerProperty primString $ flowType (Proxy @a)]
+    flowTypeName _ = Nothing
 
 
 -- | Arbitrary types cannot be object keys but need some reasonable textual representation
@@ -92,9 +120,9 @@ class GFlowTyped f where
     gFlowType :: Options -> f x -> FlowType
 
 -- Single-constructor records
-instance GFlowRecordFields f => GFlowTyped (D1 m1 (C1 m2 f)) where
-    gFlowType opts _
-        = Fix . ExactObject
+instance (Datatype m1, GFlowRecordFields f) => GFlowTyped (D1 m1 (C1 m2 f)) where
+    gFlowType opts apa
+        = Fix . NamedType (T.pack $ datatypeName apa) . Fix . ExactObject
         . fmap (first $ fromString . (fieldLabelModifier opts))
         $ recordFields (undefined :: f ())
 
@@ -156,8 +184,12 @@ data FlowTypeF a
     | Sum [a]   -- "Union" in Flow terminology
     | Literal Lit
     | Object [PropertyF a]
+    | NamedType Text a -- Required for recursive types
     | Promise a
-    deriving (Show, Eq, Functor, Traversable, Foldable)
+    deriving (Functor, Traversable, Foldable)
+
+data DeclaredType
+    = DeclaredType Text (forall t. FlowTyped t => Proxy t)
 
 data Lit
     = LitString Text
@@ -221,3 +253,9 @@ renderFlowTypeF (Object ps)     = inBrackets . T.intercalate ", " $ renderProper
 renderFlowTypeF (ExactObject l) = inSuperBrackets . T.intercalate ", " $
     (\(n, t) -> n <> " : " <> t) <$> l
 renderFlowTypeF (Promise t)     = "Promise<" <> t <> ">"
+renderFlowTypeF (NamedType n _) = n
+
+
+
+--renderTypeDef :: DeclaredType -> Text
+--renderTypeDef (DeclaredType n p) = "type " <> n <> " = " <> renderFlowType (flowType p)

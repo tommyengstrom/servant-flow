@@ -189,6 +189,11 @@ renderEndpointFunction r req = do
             unless (null ss) $ tell ","
             renderUrl ss
 
+renderEndpoints :: Rendering -> [Req FlowTypeInfo] -> CodeGen ()
+renderEndpoints r endpoints = forM_ endpoints $ \endpoint -> do
+    renderEndpointFunction r endpoint
+    tell "\n\n"
+
 renderFullClient :: Rendering -> [Req FlowTypeInfo] -> CodeGen ()
 renderFullClient r endpoints = do
     activateFlow <- asks cgActivateFlow
@@ -199,9 +204,11 @@ renderFullClient r endpoints = do
 
 renderFullClientWithDefs :: [Req FlowTypeInfo] -> CodeGen ()
 renderFullClientWithDefs endpoints = do
-    renderFullClient Referenced endpoints
-    tell "\n\n"
+    activateFlow <- asks cgActivateFlow
+    when activateFlow $ tell "// @flow \n\n"
+
     renderTypeDefs endpoints
+    renderEndpoints Referenced endpoints
 
 renderTypeDefs :: [Req FlowTypeInfo] -> CodeGen ()
 renderTypeDefs endpoints =
@@ -214,4 +221,3 @@ renderTypeDef tyName ty = "type " <> tyName <> " = " <> renderFlowTypeWithRefere
 
 getAllTypes :: Req flowTy -> [flowTy]
 getAllTypes r = catMaybes [_reqBody r, _reqReturnType r]
-

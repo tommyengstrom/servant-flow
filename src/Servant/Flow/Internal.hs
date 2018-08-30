@@ -16,7 +16,7 @@ import qualified Data.Text             as T
 import           Data.Time             (Day, LocalTime, UTCTime)
 import           GHC.Generics
 import           Servant.API           (NoContent)
-
+import Data.Maybe
 
 class FlowTyped a where
     flowType :: Proxy a -> FlowType
@@ -24,9 +24,12 @@ class FlowTyped a where
     default flowType :: (Generic a, GFlowTyped (Rep a)) => Proxy a -> FlowType
     flowType pa = genericFlowType defaultOptions pa
 
-    flowTypeName :: Proxy a -> Maybe Text
+    -- | Returning `Just t` mean t will be used by types referencing it.
+    --   Returning `Nothing` mean the type definition will be inserted directly.
+    --   Not using references is a very bad idea for recursive types!
+    flowTypeName :: Proxy a -> Maybe FlowType
 
-    default flowTypeName :: (Generic a, GTypeName (Rep a)) => Proxy a -> Maybe Text
+    default flowTypeName :: (Generic a, GTypeName (Rep a)) => Proxy a -> Maybe FlowType
     flowTypeName = genericFlowTypeName
 
 
@@ -35,8 +38,9 @@ genericFlowType :: forall a. (Generic a, GFlowTyped (Rep a))
 genericFlowType opts _ = gFlowType opts (from (undefined :: a))
 
 
-genericFlowTypeName :: forall a. (Generic a, GTypeName (Rep a)) => Proxy a -> Maybe Text
-genericFlowTypeName _ = Just $ gtypename (from (undefined :: a))
+genericFlowTypeName :: forall a. (Generic a, GTypeName (Rep a))
+                    => Proxy a -> Maybe FlowType
+genericFlowTypeName _ = Just . Fix . NamedType $ gtypename (from (undefined :: a))
 
 class GTypeName f where
   gtypename :: f a -> Text
@@ -91,19 +95,20 @@ instance FlowTyped NoContent where
 
 
 instance FlowTyped a => FlowTyped (Maybe a) where
-    flowType _ = Fix . Nullable $ flowType (Proxy @a)
+    flowType _ = Fix . Nullable $ flowTypePreferReference (Proxy @a)
     flowTypeName _ = Nothing
 
 instance FlowTyped a => FlowTyped [a] where
-    flowType _ = Fix . Array $ flowType (Proxy @a)
+    flowType _ = Fix . Array $ flowTypePreferReference (Proxy @a)
     flowTypeName _ = Nothing
 
 instance (Ord a, FlowTyped a) => FlowTyped (Set a) where
-    flowType _ = Fix . Array $ flowType (Proxy @a)
+    flowType _ = Fix . Array $ flowTypePreferReference (Proxy @a)
     flowTypeName _ = Nothing
 
 instance (Ord k, FlowObjectKey k, FlowTyped a) => FlowTyped (Map k a) where
-    flowType _ = Fix . Object $ [IndexerProperty primString $ flowType (Proxy @a)]
+    flowType _ = Fix . Object $ [IndexerProperty (Fix $ Prim String)
+               $ flowTypePreferReference (Proxy @a)]
     flowTypeName _ = Nothing
 
 
@@ -121,8 +126,8 @@ class GFlowTyped f where
 
 -- Single-constructor records
 instance (Datatype m1, GFlowRecordFields f) => GFlowTyped (D1 m1 (C1 m2 f)) where
-    gFlowType opts apa
-        = Fix . NamedType (T.pack $ datatypeName apa) . Fix . ExactObject
+    gFlowType opts _
+        = Fix . ExactObject
         . fmap (first $ fromString . (fieldLabelModifier opts))
         $ recordFields (undefined :: f ())
 
@@ -133,7 +138,7 @@ instance GSimpleSum (f :+: g) => GFlowTyped (D1 m (f :+: g)) where
 
 -- Use an instance that already exists
 instance FlowTyped a => GFlowTyped (K1 i a) where
-    gFlowType _ _ = flowType (Proxy @a)
+    gFlowType _ _ = flowTypePreferReference (Proxy @a)
 
 -- Record product type helper class
 class GFlowRecordFields f where
@@ -141,11 +146,13 @@ class GFlowRecordFields f where
 
 instance (FlowTyped a, Selector s) => GFlowRecordFields (S1 s (K1 R a)) where
     recordFields _ =
-        [(selName (undefined :: S1 s (K1 R a) ()) , flowType (Proxy @a))]
+        [(selName (undefined :: S1 s (K1 R a) ()) , flowTypePreferReference (Proxy @a))]
 
 instance (GFlowRecordFields f, GFlowRecordFields g) => GFlowRecordFields (f :*: g) where
     recordFields _ = recordFields (undefined :: f ()) <> recordFields (undefined :: g ())
 
+flowTypePreferReference :: FlowTyped a => Proxy a -> FlowType
+flowTypePreferReference p = fromMaybe (flowType p) $ flowTypeName p
 
 -- Simple sum type helper class
 class GSimpleSum f where
@@ -184,12 +191,13 @@ data FlowTypeF a
     | Sum [a]   -- "Union" in Flow terminology
     | Literal Lit
     | Object [PropertyF a]
-    | NamedType Text a -- Required for recursive types
+    | NamedType Text
     | Promise a
     deriving (Functor, Traversable, Foldable)
 
-data DeclaredType
-    = DeclaredType Text (forall t. FlowTyped t => Proxy t)
+data DeclaredType = DeclaredType
+    { getTypename :: Text
+    }
 
 data Lit
     = LitString Text
@@ -250,10 +258,11 @@ renderFlowTypeF (Array a)       = inParens a <> "[]"
 renderFlowTypeF (Sum l)         = T.intercalate " | " l
 renderFlowTypeF (Literal lit)   = showLiteral lit
 renderFlowTypeF (Object ps)     = inBrackets . T.intercalate ", " $ renderProperty <$> ps
-renderFlowTypeF (ExactObject l) = inSuperBrackets . T.intercalate ", " $
-    (\(n, t) -> n <> " : " <> t) <$> l
+renderFlowTypeF (ExactObject l) = inSuperBrackets
+                                . T.intercalate ", "
+                                $ (\(n, t) -> n <> " : " <> t) <$> l
 renderFlowTypeF (Promise t)     = "Promise<" <> t <> ">"
-renderFlowTypeF (NamedType n _) = n
+renderFlowTypeF (NamedType t)   = t
 
 
 

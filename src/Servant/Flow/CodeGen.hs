@@ -141,7 +141,8 @@ renderFun req = do
         renderReturnType :: CodeGen ()
         renderReturnType =
             let mkResponse t = Fix $ Promise . Fix
-                             $ Object [Property "status" primString, Property "data" t]
+                             $ Object [ Property "status" (Fix $ Prim String)
+                                      , Property "data" t]
              in tell . renderFlowTypeInComment
                      . mkResponse
                      . fromMaybe (Fix $ Prim Void)

@@ -1,5 +1,6 @@
-{-# LANGUAGE StrictData      #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE StrictData         #-}
+{-# LANGUAGE TemplateHaskell    #-}
 
 module Servant.Flow.Internal where
 
@@ -55,16 +56,103 @@ data PropertyF a
 $(recursed ''FlowType)
 
 
+primBoolean, primNumber, primString, primAny, primAnyObject, primVoid :: FlowTypeInfo
+primBoolean   = nameless $ Prim Boolean
+primNumber    = nameless $ Prim Number
+primString    = nameless $ Prim String
+primAny       = nameless $ Prim Any
+primAnyObject = nameless $ Prim AnyObject
+primVoid      = nameless $ Prim Void
+
+
+------------------------------------------------------------------------------------------
+--  Annotated Flow Types
+------------------------------------------------------------------------------------------
+
 -- | Annotate a place in a type expression as correspdonding to a named definition.
 --   No assumptions are made about the name, such as any relationship to the haskell one.
 data Named a = Named
     { namedName :: Text
     , namedBody :: a
-    } deriving (Functor, Foldable)
+    } deriving (Functor, Foldable, Show)
 
 type FlowTypeInfoF = FlowTypeF :+: Named
 type FlowTypeInfo  = Fix FlowTypeInfoF
 
+-- | A Reference to a defined flow type. Differs from 'Named' in that it does not also
+--   keep the value of the referenced type expression.
+newtype Ref a = Ref Text deriving (Functor, Show)
+
+type FlowTypeRef = Fix (FlowTypeF :+: Ref)
+
+deriving instance Show a => Show (FlowTypeF a)
+deriving instance Show FlowTypeRef
+--deriving instance Show FlowTypeInfo
+
+
+forgetNamesF :: Algebra (FlowTypeF :+: Named) FlowType
+forgetNamesF (L1 ty) = unfixAlg ty
+forgetNamesF (R1 r)  = namedBody r
+
+-- | Discard all type name information in the 'FlowTypeInfo' leaving just the 'FlowType'.
+forgetNames :: FlowTypeInfo -> FlowType
+forgetNames = cata forgetNamesF
+
+-- | Convert a 'FlowType' to a 'FlowTypeInfo' without any type name information.
+nameless :: FlowType -> FlowTypeInfo
+nameless = catamap (Fix . L1)
+
+-- | Annotate a 'FlowTypeInfo' expression as corresponding to a named type definition.
+named :: Text -> FlowTypeInfo -> FlowTypeInfo
+named n = Fix . R1 . Named n
+
+-- | Create a 'FlowTypeInfo' by specifying the flow type name of the provided 'FlowType'.
+withName :: Text -> FlowType -> FlowTypeInfo
+withName n = named n . nameless
+
+
+type Env = [(Text, FlowTypeInfo)]
+
+getEnv :: FlowTypeInfo -> Env
+getEnv = para getEnvR
+
+getEnvR :: RAlgebra FlowTypeInfoF Env
+getEnvR (L1 fpair)                    = snd =<< toList fpair
+getEnvR (R1 (Named name (body, env))) = [(name, body)] <> env
+
+
+type RefEnv = [(Text, FlowTypeRef)]
+
+getRefEnv :: FlowTypeInfo -> RefEnv
+getRefEnv = toRefEnv . getEnv
+
+
+toRefEnv :: Env -> RefEnv
+toRefEnv = fmap . fmap $ toReferenced
+
+-- | Drop any 'Named' subexpressions and instead just keep the 'Ref' to the type.
+--   Importantly, it drops any name at the top-level of the expression.
+toReferenced :: FlowTypeInfo -> FlowTypeRef
+toReferenced = toRef . dropTopName
+    where
+        toRef :: FlowTypeInfo -> FlowTypeRef
+        toRef = para toReferencedAlg
+
+        toReferencedAlg :: RAlgebra FlowTypeInfoF FlowTypeRef
+        toReferencedAlg (R1 n)     = Fix . R1 . Ref $ namedName n
+        toReferencedAlg (L1 infoF) = Fix $ toRef . fst <$> (L1 infoF)
+
+        dropTopName :: FlowTypeInfo -> FlowTypeInfo
+        dropTopName = dropTopNameF . unFix
+
+        dropTopNameF :: FlowTypeInfoF FlowTypeInfo -> FlowTypeInfo
+        dropTopNameF (L1 x) = Fix $ L1 x
+        dropTopNameF (R1 n) = namedBody n
+
+
+------------------------------------------------------------------------------------------
+--  Classes
+------------------------------------------------------------------------------------------
 
 class FlowTyped a where
     flowTypeInfo :: Proxy a -> FlowTypeInfo
@@ -76,42 +164,46 @@ class FlowTyped a where
     flowType :: Proxy a -> FlowType
     flowType = forgetNames . flowTypeInfo
 
+    flowTypeRef :: Proxy a -> FlowTypeRef
+    flowTypeRef = toReferenced . flowTypeInfo
+
 
 genericFlowType :: forall a. (Generic a, GFlowTyped (Rep a))
                 => Options -> Proxy a -> FlowTypeInfo
 genericFlowType opts _ = gFlowType opts (from (undefined :: a))
 
 
+
 -- Primative instances
 instance FlowTyped Int where
-    flowTypeInfo _ = nameless $ Prim Number
+    flowTypeInfo _ = primNumber
 
 instance FlowTyped Int64 where
-    flowTypeInfo _ = nameless $ Prim Number
+    flowTypeInfo _ = primNumber
 
 instance FlowTyped Float where
-    flowTypeInfo _ = nameless $ Prim Number
+    flowTypeInfo _ = primNumber
 
 instance FlowTyped Double where
-    flowTypeInfo _ = nameless $ Prim Number
+    flowTypeInfo _ = primNumber
 
 instance FlowTyped Bool where
-    flowTypeInfo _ = nameless $ Prim Number
+    flowTypeInfo _ = primNumber
 
 instance FlowTyped Text where
-    flowTypeInfo _ = nameless $ Prim String
+    flowTypeInfo _ = primString
 
 instance FlowTyped UTCTime where
-    flowTypeInfo _ = nameless $ Prim String
+    flowTypeInfo _ = primString
 
 instance FlowTyped Day where
-    flowTypeInfo _ = nameless $ Prim String
+    flowTypeInfo _ = primString
 
 instance FlowTyped LocalTime where
-    flowTypeInfo _ = nameless $ Prim String
+    flowTypeInfo _ = primString
 
 instance FlowTyped NoContent where
-    flowTypeInfo _ = nameless $ Prim Void
+    flowTypeInfo _ = primVoid
 
 
 instance FlowTyped a => FlowTyped (Maybe a) where
@@ -125,7 +217,7 @@ instance (Ord a, FlowTyped a) => FlowTyped (Set a) where
 
 instance (Ord k, FlowObjectKey k, FlowTyped a) => FlowTyped (Map k a) where
     flowTypeInfo _ = Fix . L1 . Object_ $
-        [IndexerProperty (nameless $ Prim String) $ flowTypeInfo (Proxy @a)]
+        [IndexerProperty primString $ flowTypeInfo (Proxy @a)]
 
 
 -- | Arbitrary types cannot be object keys but need string representation
@@ -185,6 +277,17 @@ instance (GSimpleSum f, GSimpleSum g) => GSimpleSum (f :+: g) where
         simpleSumOptions opts (undefined :: g ())
 
 
+------------------------------------------------------------------------------------------
+--  Rendering
+------------------------------------------------------------------------------------------
+
+
+data Rendering = Flattened | Referenced
+
+renderType :: Rendering -> FlowTypeInfo -> Text
+renderType Flattened  = renderFlowType . forgetNames
+renderType Referenced = renderFlowTypeWithReferences . toReferenced
+
 
 showLiteral :: Lit -> Text
 showLiteral (LitString txt) = fromString $ show txt
@@ -230,74 +333,3 @@ renderFlowTypeWithReferences = cata renderFlowTypeRefF
 renderFlowTypeRefF :: Algebra (FlowTypeF :+: Ref) Text
 renderFlowTypeRefF (L1 ty)      = renderFlowTypeF ty
 renderFlowTypeRefF (R1 (Ref n)) = n
-
-
-data Rendering = Flattened | Referenced
-
-renderType :: Rendering -> FlowTypeInfo -> Text
-renderType Flattened  = renderFlowType . forgetNames
-renderType Referenced = renderFlowTypeWithReferences . toReferenced
-
-
-forgetNamesF :: Algebra (FlowTypeF :+: Named) FlowType
-forgetNamesF (L1 ty) = unfixAlg ty
-forgetNamesF (R1 r)  = namedBody r
-
--- | Discard all type name information in the 'FlowTypeInfo' leaving just the 'FlowType'.
-forgetNames :: FlowTypeInfo -> FlowType
-forgetNames = cata forgetNamesF
-
--- | Convert a 'FlowType' to a 'FlowTypeInfo' without any type name information.
-nameless :: FlowType -> FlowTypeInfo
-nameless = catamap (Fix . L1)
-
--- | Annotate a 'FlowTypeInfo' expression as corresponding to a named type definition.
-named :: Text -> FlowTypeInfo -> FlowTypeInfo
-named n = Fix . R1 . Named n
-
--- | Create a 'FlowTypeInfo' by specifying the flow type name of the provided 'FlowType'.
-withName :: Text -> FlowType -> FlowTypeInfo
-withName n = named n . nameless
-
-
-type Env = [(Text, FlowTypeInfo)]
-
-getEnv :: FlowTypeInfo -> Env
-getEnv = para getEnvR
-
-getEnvR :: RAlgebra FlowTypeInfoF Env
-getEnvR (L1 fpair)                   = snd =<< toList fpair
-getEnvR (R1 (Named name (body,env))) = [(name, body)] <> env
-
-
-type RefEnv = [(Text, FlowTypeRef)]
-
-getRefEnv :: FlowTypeInfo -> RefEnv
-getRefEnv = toRefEnv . getEnv
-
-
--- | A Reference to a defined flow type. Differs from 'Named' in that it does not also
---   keep the value of the referenced type expression.
-newtype Ref a = Ref Text deriving Functor
-
-type FlowTypeRef = Fix (FlowTypeF :+: Ref)
-
--- | Drop any 'Named' subexpressions and instead just keep the 'Ref' to the type.
---   This function is mutually recursive with 'toReferencedAlg'.
-toReferenced :: FlowTypeInfo -> FlowTypeRef
-toReferenced = para toReferencedAlg
-
-toReferencedAlg :: RAlgebra FlowTypeInfoF FlowTypeRef
-toReferencedAlg (R1 n)     = Fix . R1 . Ref $ namedName n
-toReferencedAlg (L1 infoF) = Fix $ toReferenced . fst <$> (L1 infoF)
-
-toRefEnv :: Env -> RefEnv
-toRefEnv = fmap . fmap $ toReferenced
-
-primBoolean, primNumber, primString, primAny, primAnyObject, primVoid :: FlowTypeInfo
-primBoolean   = nameless $ Prim Boolean
-primNumber    = nameless $ Prim Number
-primString    = nameless $ Prim String
-primAny       = nameless $ Prim Any
-primAnyObject = nameless $ Prim AnyObject
-primVoid      = nameless $ Prim Void

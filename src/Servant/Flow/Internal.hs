@@ -1,6 +1,5 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE StrictData         #-}
-{-# LANGUAGE TemplateHaskell    #-}
 
 module Servant.Flow.Internal where
 
@@ -139,7 +138,7 @@ toReferenced = toRef . dropTopName
         toReferencedAlg :: FlowTypeInfoF (Fix FlowTypeInfoF, FlowTypeRef) -> FlowTypeRef
 
         toReferencedAlg (R1 n)     = Fix . R1 . Ref $ namedName n
-        toReferencedAlg (L1 infoF) = Fix $ toRef . fst <$> (L1 infoF)
+        toReferencedAlg (L1 infoF) = Fix $ toRef . fst <$> L1 infoF
 
         dropTopName :: FlowTypeInfo -> FlowTypeInfo
         dropTopName = dropTopNameF . unfix
@@ -158,7 +157,7 @@ class Flow a where
 
     default
         flowTypeInfo :: (Generic a, GFlow (Rep a)) => Proxy a -> FlowTypeInfo
-    flowTypeInfo pa = genericFlowType defaultOptions pa
+    flowTypeInfo = genericFlowType defaultOptions
 
     flowType :: Proxy a -> FlowType
     flowType = forgetNames . flowTypeInfo
@@ -235,7 +234,7 @@ class GFlow f where
 instance GFlowRecordFields f => GFlow (D1 m1 (C1 m2 f)) where
     gFlowType opts _
         = Fix . L1 . ExactObject
-        . fmap (first $ fromString . (fieldLabelModifier opts))
+        . fmap (first $ fromString . fieldLabelModifier opts)
         $ recordFields (undefined :: f ())
 
 -- Simple sum types

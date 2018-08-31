@@ -80,7 +80,7 @@ renderArgNoComment :: Rendering -> Arg FlowTypeInfo -> Text
 renderArgNoComment r (Arg (PathSegment name) t) = name <> " : " <> renderFlowTypeOneLine r t
 
 getCaptureArgs :: Req a -> [Arg a]
-getCaptureArgs req = catMaybes . fmap getArg $ req ^. reqUrl . path
+getCaptureArgs req = mapMaybe getArg $ req ^. reqUrl . path
     where
         getArg :: Segment a -> Maybe (Arg a)
         getArg (Segment (Static _ )) = Nothing

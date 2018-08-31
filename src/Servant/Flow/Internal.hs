@@ -21,16 +21,18 @@ import           Recursed
 import           Servant.API    (NoContent)
 
 
-data FlowType
+type FlowType = Fix FlowTypeF
+
+data FlowTypeF a
     = Prim PrimType
-    | ExactObject [(Text, FlowType)]
-    | Array FlowType
-    | Nullable FlowType
+    | ExactObject [(Text, a)]
+    | Array a
+    | Nullable a
     -- | Called "Union" in Flow terminology
-    | Sum [FlowType]
+    | Sum [a]
     | Literal Lit
-    | Object [PropertyF FlowType]
-    deriving (Show, Eq)
+    | Object [PropertyF a]
+    deriving (Functor, Foldable, Traversable)
 
 data PrimType
     = Boolean
@@ -39,7 +41,7 @@ data PrimType
     | Any
     | AnyObject
     | Void
-    deriving (Show, Eq, Ord)
+    deriving (Show, Eq)
 
 data Lit
     = LitString Text
@@ -53,16 +55,14 @@ data PropertyF a
     deriving (Show, Eq, Functor, Traversable, Foldable)
     -- NamedIndexerProperty Text a a  -- Carries a simple comment-like annotation
 
-$(recursed ''FlowType)
-
 
 primBoolean, primNumber, primString, primAny, primAnyObject, primVoid :: FlowTypeInfo
-primBoolean   = nameless $ Prim Boolean
-primNumber    = nameless $ Prim Number
-primString    = nameless $ Prim String
-primAny       = nameless $ Prim Any
-primAnyObject = nameless $ Prim AnyObject
-primVoid      = nameless $ Prim Void
+primBoolean   = nameless . Fix $ Prim Boolean
+primNumber    = nameless . Fix $ Prim Number
+primString    = nameless . Fix $ Prim String
+primAny       = nameless . Fix $ Prim Any
+primAnyObject = nameless . Fix $ Prim AnyObject
+primVoid      = nameless . Fix $ Prim Void
 
 
 ------------------------------------------------------------------------------------------
@@ -87,11 +87,10 @@ type FlowTypeRef = Fix (FlowTypeF :+: Ref)
 
 deriving instance Show a => Show (FlowTypeF a)
 deriving instance Show FlowTypeRef
---deriving instance Show FlowTypeInfo
 
 
 forgetNamesF :: Algebra (FlowTypeF :+: Named) FlowType
-forgetNamesF (L1 ty) = unfixAlg ty
+forgetNamesF (L1 ty) = Fix ty
 forgetNamesF (R1 r)  = namedBody r
 
 -- | Discard all type name information in the 'FlowTypeInfo' leaving just the 'FlowType'.
@@ -100,7 +99,7 @@ forgetNames = cata forgetNamesF
 
 -- | Convert a 'FlowType' to a 'FlowTypeInfo' without any type name information.
 nameless :: FlowType -> FlowTypeInfo
-nameless = catamap (Fix . L1)
+nameless = cata (Fix . L1)
 
 -- | Annotate a 'FlowTypeInfo' expression as corresponding to a named type definition.
 named :: Text -> FlowTypeInfo -> FlowTypeInfo
@@ -207,16 +206,16 @@ instance FlowTyped NoContent where
 
 
 instance FlowTyped a => FlowTyped (Maybe a) where
-    flowTypeInfo _ = Fix . L1 . Nullable_ $ flowTypeInfo (Proxy @a)
+    flowTypeInfo _ = Fix . L1 . Nullable $ flowTypeInfo (Proxy @a)
 
 instance FlowTyped a => FlowTyped [a] where
-    flowTypeInfo _ = Fix . L1 . Array_ $ flowTypeInfo (Proxy @a)
+    flowTypeInfo _ = Fix . L1 . Array $ flowTypeInfo (Proxy @a)
 
 instance (Ord a, FlowTyped a) => FlowTyped (Set a) where
-    flowTypeInfo _ = Fix . L1 . Array_ $ flowTypeInfo (Proxy @a)
+    flowTypeInfo _ = Fix . L1 . Array $ flowTypeInfo (Proxy @a)
 
 instance (Ord k, FlowObjectKey k, FlowTyped a) => FlowTyped (Map k a) where
-    flowTypeInfo _ = Fix . L1 . Object_ $
+    flowTypeInfo _ = Fix . L1 . Object $
         [IndexerProperty primString $ flowTypeInfo (Proxy @a)]
 
 
@@ -235,13 +234,13 @@ class GFlowTyped f where
 -- Single-constructor records
 instance GFlowRecordFields f => GFlowTyped (D1 m1 (C1 m2 f)) where
     gFlowType opts _
-        = Fix . L1 . ExactObject_
+        = Fix . L1 . ExactObject
         . fmap (first $ fromString . (fieldLabelModifier opts))
         $ recordFields (undefined :: f ())
 
 -- Simple sum types
 instance GSimpleSum (f :+: g) => GFlowTyped (D1 m (f :+: g)) where
-    gFlowType opts _ = Fix . L1 . Sum_ . fmap (Fix . L1 . Literal_ . LitString) $
+    gFlowType opts _ = Fix . L1 . Sum . fmap (Fix . L1 . Literal . LitString) $
         simpleSumOptions opts (undefined :: (f :+: g) ())
 
 -- Use an instance that already exists
@@ -303,16 +302,16 @@ inSuperBrackets t = "{| " <> t <> " |}"
 
 
 renderFlowType :: FlowType -> Text
-renderFlowType = catamap renderFlowTypeF
+renderFlowType = cata renderFlowTypeF
 
 renderFlowTypeF :: Algebra FlowTypeF Text
-renderFlowTypeF (Prim_ prim)     = renderPrimative prim
-renderFlowTypeF (Nullable_ t)    = "?" <> inParens t
-renderFlowTypeF (Array_ a)       = inParens a <> "[]"
-renderFlowTypeF (Sum_ l)         = T.intercalate " | " l
-renderFlowTypeF (Literal_ lit)   = showLiteral lit
-renderFlowTypeF (Object_ ps)     = inBrackets . T.intercalate ", " $ renderProperty <$> ps
-renderFlowTypeF (ExactObject_ l) = inSuperBrackets . T.intercalate ", " $
+renderFlowTypeF (Prim prim)     = renderPrimative prim
+renderFlowTypeF (Nullable t)    = "?" <> inParens t
+renderFlowTypeF (Array a)       = inParens a <> "[]"
+renderFlowTypeF (Sum l)         = T.intercalate " | " l
+renderFlowTypeF (Literal lit)   = showLiteral lit
+renderFlowTypeF (Object ps)     = inBrackets . T.intercalate ", " $ renderProperty <$> ps
+renderFlowTypeF (ExactObject l) = inSuperBrackets . T.intercalate ", " $
     (\(n, t) -> n <> " : " <> t) <$> l
 
 renderPrimative :: PrimType -> Text

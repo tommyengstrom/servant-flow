@@ -153,11 +153,11 @@ toReferenced = toRef . dropTopName
 --  Classes
 ------------------------------------------------------------------------------------------
 
-class FlowTyped a where
+class Flow a where
     flowTypeInfo :: Proxy a -> FlowTypeInfo
 
     default
-        flowTypeInfo :: (Generic a, GFlowTyped (Rep a)) => Proxy a -> FlowTypeInfo
+        flowTypeInfo :: (Generic a, GFlow (Rep a)) => Proxy a -> FlowTypeInfo
     flowTypeInfo pa = genericFlowType defaultOptions pa
 
     flowType :: Proxy a -> FlowType
@@ -167,54 +167,54 @@ class FlowTyped a where
     flowTypeRef = toReferenced . flowTypeInfo
 
 
-genericFlowType :: forall a. (Generic a, GFlowTyped (Rep a))
+genericFlowType :: forall a. (Generic a, GFlow (Rep a))
                 => Options -> Proxy a -> FlowTypeInfo
 genericFlowType opts _ = gFlowType opts (from (undefined :: a))
 
 
 
 -- Primative instances
-instance FlowTyped Int where
+instance Flow Int where
     flowTypeInfo _ = primNumber
 
-instance FlowTyped Int64 where
+instance Flow Int64 where
     flowTypeInfo _ = primNumber
 
-instance FlowTyped Float where
+instance Flow Float where
     flowTypeInfo _ = primNumber
 
-instance FlowTyped Double where
+instance Flow Double where
     flowTypeInfo _ = primNumber
 
-instance FlowTyped Bool where
+instance Flow Bool where
     flowTypeInfo _ = primNumber
 
-instance FlowTyped Text where
+instance Flow Text where
     flowTypeInfo _ = primString
 
-instance FlowTyped UTCTime where
+instance Flow UTCTime where
     flowTypeInfo _ = primString
 
-instance FlowTyped Day where
+instance Flow Day where
     flowTypeInfo _ = primString
 
-instance FlowTyped LocalTime where
+instance Flow LocalTime where
     flowTypeInfo _ = primString
 
-instance FlowTyped NoContent where
+instance Flow NoContent where
     flowTypeInfo _ = primVoid
 
 
-instance FlowTyped a => FlowTyped (Maybe a) where
+instance Flow a => Flow (Maybe a) where
     flowTypeInfo _ = Fix . L1 . Nullable $ flowTypeInfo (Proxy @a)
 
-instance FlowTyped a => FlowTyped [a] where
+instance Flow a => Flow [a] where
     flowTypeInfo _ = Fix . L1 . Array $ flowTypeInfo (Proxy @a)
 
-instance (Ord a, FlowTyped a) => FlowTyped (Set a) where
+instance (Ord a, Flow a) => Flow (Set a) where
     flowTypeInfo _ = Fix . L1 . Array $ flowTypeInfo (Proxy @a)
 
-instance (Ord k, FlowObjectKey k, FlowTyped a) => FlowTyped (Map k a) where
+instance (Ord k, FlowObjectKey k, Flow a) => Flow (Map k a) where
     flowTypeInfo _ = Fix . L1 . Object $
         [IndexerProperty primString $ flowTypeInfo (Proxy @a)]
 
@@ -228,30 +228,30 @@ instance FlowObjectKey Text
 
 
 -- Generic instances
-class GFlowTyped f where
+class GFlow f where
     gFlowType :: Options -> f x -> FlowTypeInfo
 
 -- Single-constructor records
-instance GFlowRecordFields f => GFlowTyped (D1 m1 (C1 m2 f)) where
+instance GFlowRecordFields f => GFlow (D1 m1 (C1 m2 f)) where
     gFlowType opts _
         = Fix . L1 . ExactObject
         . fmap (first $ fromString . (fieldLabelModifier opts))
         $ recordFields (undefined :: f ())
 
 -- Simple sum types
-instance GSimpleSum (f :+: g) => GFlowTyped (D1 m (f :+: g)) where
+instance GSimpleSum (f :+: g) => GFlow (D1 m (f :+: g)) where
     gFlowType opts _ = Fix . L1 . Sum . fmap (Fix . L1 . Literal . LitString) $
         simpleSumOptions opts (undefined :: (f :+: g) ())
 
 -- Use an instance that already exists
-instance FlowTyped a => GFlowTyped (K1 i a) where
+instance Flow a => GFlow (K1 i a) where
     gFlowType _ _ = flowTypeInfo (Proxy @a)
 
 -- Record product type helper class
 class GFlowRecordFields f where
     recordFields :: f x -> [(String, FlowTypeInfo)]
 
-instance (FlowTyped a, Selector s) => GFlowRecordFields (S1 s (K1 R a)) where
+instance (Flow a, Selector s) => GFlowRecordFields (S1 s (K1 R a)) where
     recordFields _ =
         [(selName (undefined :: S1 s (K1 R a) ()) , flowTypeInfo (Proxy @a))]
 

@@ -3,7 +3,7 @@ module Servant.Flow
 
     ( -- ** Classes and basic types
       FlowType
-    , FlowTyped (..)
+    , Flow (..)
     , genericFlowType
     , renderFlowType
     , FlowObjectKey
@@ -45,7 +45,7 @@ import           Servant.Foreign
 
 data LangFlow
 
-instance FlowTyped a => HasForeignType LangFlow FlowTypeInfo a where
+instance Flow a => HasForeignType LangFlow FlowTypeInfo a where
     typeFor _ _ = flowTypeInfo
 
 getEndpoints :: ( HasForeign LangFlow FlowTypeInfo api

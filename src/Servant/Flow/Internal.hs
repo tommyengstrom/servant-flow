@@ -4,21 +4,21 @@
 
 module Servant.Flow.Internal where
 
-import           Data.Aeson     (Options (..), defaultOptions)
-import           Data.Bifunctor (first)
-import           Data.Foldable  (toList)
-import           Data.Int       (Int64)
-import           Data.Map       (Map)
-import           Data.Monoid    ((<>))
+import           Data.Aeson            (Options (..), defaultOptions)
+import           Data.Bifunctor        (first)
+import           Data.Foldable         (toList)
+import           Data.Functor.Foldable
+import           Data.Int              (Int64)
+import           Data.Map              (Map)
+import           Data.Monoid           ((<>))
 import           Data.Proxy
-import           Data.Set       (Set)
+import           Data.Set              (Set)
 import           Data.String
-import           Data.Text      (Text)
-import qualified Data.Text      as T
-import           Data.Time      (Day, LocalTime, UTCTime)
+import           Data.Text             (Text)
+import qualified Data.Text             as T
+import           Data.Time             (Day, LocalTime, UTCTime)
 import           GHC.Generics
-import           Recursed
-import           Servant.API    (NoContent)
+import           Servant.API           (NoContent)
 
 
 type FlowType = Fix FlowTypeF
@@ -32,7 +32,7 @@ data FlowTypeF a
     | Sum [a]
     | Literal Lit
     | Object [PropertyF a]
-    deriving (Functor, Foldable, Traversable)
+    deriving (Show, Functor, Foldable, Traversable)
 
 data PrimType
     = Boolean
@@ -85,11 +85,8 @@ newtype Ref a = Ref Text deriving (Functor, Show)
 
 type FlowTypeRef = Fix (FlowTypeF :+: Ref)
 
-deriving instance Show a => Show (FlowTypeF a)
-deriving instance Show FlowTypeRef
 
-
-forgetNamesF :: Algebra (FlowTypeF :+: Named) FlowType
+forgetNamesF :: (FlowTypeF :+: Named) FlowType -> FlowType
 forgetNamesF (L1 ty) = Fix ty
 forgetNamesF (R1 r)  = namedBody r
 
@@ -115,7 +112,8 @@ type Env = [(Text, FlowTypeInfo)]
 getEnv :: FlowTypeInfo -> Env
 getEnv = para getEnvR
 
-getEnvR :: RAlgebra FlowTypeInfoF Env
+--      :: RAlgebra FlowTypeInfoF Env
+getEnvR :: FlowTypeInfoF (a, [(Text, a)]) -> [(Text, a)]
 getEnvR (L1 fpair)                    = snd =<< toList fpair
 getEnvR (R1 (Named name (body, env))) = [(name, body)] <> env
 
@@ -137,12 +135,14 @@ toReferenced = toRef . dropTopName
         toRef :: FlowTypeInfo -> FlowTypeRef
         toRef = para toReferencedAlg
 
-        toReferencedAlg :: RAlgebra FlowTypeInfoF FlowTypeRef
+        --              :: RAlgebra FlowTypeInfoF FlowTypeRef
+        toReferencedAlg :: FlowTypeInfoF (Fix FlowTypeInfoF, FlowTypeRef) -> FlowTypeRef
+
         toReferencedAlg (R1 n)     = Fix . R1 . Ref $ namedName n
         toReferencedAlg (L1 infoF) = Fix $ toRef . fst <$> (L1 infoF)
 
         dropTopName :: FlowTypeInfo -> FlowTypeInfo
-        dropTopName = dropTopNameF . unFix
+        dropTopName = dropTopNameF . unfix
 
         dropTopNameF :: FlowTypeInfoF FlowTypeInfo -> FlowTypeInfo
         dropTopNameF (L1 x) = Fix $ L1 x
@@ -304,7 +304,7 @@ inSuperBrackets t = "{| " <> t <> " |}"
 renderFlowType :: FlowType -> Text
 renderFlowType = cata renderFlowTypeF
 
-renderFlowTypeF :: Algebra FlowTypeF Text
+renderFlowTypeF :: FlowTypeF Text -> Text
 renderFlowTypeF (Prim prim)     = renderPrimative prim
 renderFlowTypeF (Nullable t)    = "?" <> inParens t
 renderFlowTypeF (Array a)       = inParens a <> "[]"
@@ -322,13 +322,13 @@ renderPrimative Any       = "any"
 renderPrimative AnyObject = "{}" -- unclear if/how this differs from "Object"
 renderPrimative Void      = "void"
 
-renderProperty :: Algebra PropertyF Text
+renderProperty :: PropertyF Text -> Text
 renderProperty (Property fieldName ty)    = fieldName <> ": " <> ty
 renderProperty (IndexerProperty keyTy ty) = "[" <> keyTy <> "]: " <> ty
 
 renderFlowTypeWithReferences :: FlowTypeRef -> Text
 renderFlowTypeWithReferences = cata renderFlowTypeRefF
 
-renderFlowTypeRefF :: Algebra (FlowTypeF :+: Ref) Text
+renderFlowTypeRefF :: (FlowTypeF :+: Ref) Text -> Text
 renderFlowTypeRefF (L1 ty)      = renderFlowTypeF ty
 renderFlowTypeRefF (R1 (Ref n)) = n

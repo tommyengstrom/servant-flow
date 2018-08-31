@@ -220,4 +220,19 @@ renderTypeDef tyName ty = "type " <> tyName <> " = " <> renderFlowTypeWithRefere
 
 
 getAllTypes :: Req flowTy -> [flowTy]
-getAllTypes r = catMaybes [_reqBody r, _reqReturnType r]
+getAllTypes r = catMaybes (_reqBody r : _reqReturnType r : fromURL (_reqUrl r))
+    <> fmap fromHeader (_reqHeaders r)
+    where
+        fromURL :: Url a -> [Maybe a]
+        fromURL (Url segments str) =
+            fmap fromSegment segments <> fmap (Just . fromArg . _queryArgName) str
+
+        fromSegment :: Segment a -> Maybe a
+        fromSegment (Segment (Static _)) = Nothing
+        fromSegment (Segment (Cap arg))  = Just (fromArg arg)
+
+        fromArg :: Arg a -> a
+        fromArg (Arg _name ty) = ty
+
+        fromHeader :: HeaderArg a -> a
+        fromHeader = fromArg . _headerArg

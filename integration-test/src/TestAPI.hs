@@ -8,7 +8,7 @@ import           Servant.Flow.FlowType
 
 
 data Transformation = ToUpper | ToLower
-    deriving (Show, Generic, ToJSON, FlowTyped)
+    deriving (Show, Generic, ToJSON, Flow)
 
 instance FromHttpApiData Transformation where
     parseUrlPiece "ToUpper" = Right ToUpper
@@ -33,4 +33,4 @@ data BigAssRecord = BAR
     , barBool           :: Bool
     , barTransformation :: Transformation
     -- , barTime           :: UTCTime
-    } deriving (Show, Generic, ToJSON, FlowTyped)
+    } deriving (Show, Generic, ToJSON, Flow)

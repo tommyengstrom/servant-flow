@@ -136,7 +136,6 @@ toReferenced = toRef . dropTopName
 
         --              :: RAlgebra FlowTypeInfoF FlowTypeRef
         toReferencedAlg :: FlowTypeInfoF (Fix FlowTypeInfoF, FlowTypeRef) -> FlowTypeRef
-
         toReferencedAlg (R1 n)     = Fix . R1 . Ref $ namedName n
         toReferencedAlg (L1 infoF) = Fix $ toRef . fst <$> L1 infoF
 

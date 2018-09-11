@@ -151,12 +151,6 @@ class Flow a where
         flowTypeInfo :: (Generic a, GFlow (Rep a)) => Proxy a -> FlowTypeInfo
     flowTypeInfo = genericFlowType defaultOptions
 
-    flowType :: Proxy a -> FlowType
-    flowType = forgetNames . flowTypeInfo
-
-    flowTypeRef :: Proxy a -> FlowTypeRef
-    flowTypeRef = toReferenced . flowTypeInfo
-
 
 genericFlowType :: forall a. (Generic a, GFlow (Rep a))
                 => Options -> Proxy a -> FlowTypeInfo

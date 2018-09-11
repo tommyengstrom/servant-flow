@@ -22,6 +22,7 @@ import           Servant.API           (NoContent)
 
 type FlowType = Fix FlowTypeF
 
+-- | Flow Types
 data FlowTypeF a
     = Prim PrimType
     | ExactObject [(Text, a)]
@@ -33,6 +34,7 @@ data FlowTypeF a
     | Object [PropertyF a]
     deriving (Show, Functor, Foldable, Traversable)
 
+-- | Primative types
 data PrimType
     = Boolean
     | Number
@@ -42,10 +44,12 @@ data PrimType
     | Void
     deriving (Show, Eq)
 
+-- | Literal value types
 data Lit
     = LitString Text
     deriving (Show, Eq)
 
+-- | Object field types
 data PropertyF a
     -- | A regular object field
     = Property Text a
@@ -78,37 +82,44 @@ data Named a = Named
 type FlowTypeInfoF = FlowTypeF :+: Named
 type FlowTypeInfo  = Fix FlowTypeInfoF
 
+-- | Annotate a 'FlowTypeInfo' expression as corresponding to a named type definition.
+named :: Text -> FlowTypeInfo -> FlowTypeInfo
+named n = Fix . R1 . Named n
+
+-- | Convert a 'FlowType' to a 'FlowTypeInfo' without any type name information.
+nameless :: FlowType -> FlowTypeInfo
+nameless = cata (Fix . L1)
+
+-- | Convert a 'FlowType' to a 'FlowTypeInfo' while providing a name.
+withName :: Text -> FlowType -> FlowTypeInfo
+withName n = named n . nameless
+
+-- | Discard all type name information in the 'FlowTypeInfo' leaving just the 'FlowType'.
+forgetNames :: FlowTypeInfo -> FlowType
+forgetNames = cata forgetNamesF
+    where
+        forgetNamesF :: (FlowTypeF :+: Named) FlowType -> FlowType
+        forgetNamesF (L1 ty) = Fix ty
+        forgetNamesF (R1 r)  = namedBody r
+
+
+
 -- | A Reference to a defined flow type. Differs from 'Named' in that it does not also
 --   keep the value of the referenced type expression.
 newtype Ref a = Ref Text deriving (Functor, Show)
 
 type FlowTypeRef = Fix (FlowTypeF :+: Ref)
 
-
-forgetNamesF :: (FlowTypeF :+: Named) FlowType -> FlowType
-forgetNamesF (L1 ty) = Fix ty
-forgetNamesF (R1 r)  = namedBody r
-
--- | Discard all type name information in the 'FlowTypeInfo' leaving just the 'FlowType'.
-forgetNames :: FlowTypeInfo -> FlowType
-forgetNames = cata forgetNamesF
-
--- | Convert a 'FlowType' to a 'FlowTypeInfo' without any type name information.
-nameless :: FlowType -> FlowTypeInfo
-nameless = cata (Fix . L1)
-
--- | Annotate a 'FlowTypeInfo' expression as corresponding to a named type definition.
-named :: Text -> FlowTypeInfo -> FlowTypeInfo
-named n = Fix . R1 . Named n
-
--- | Create a 'FlowTypeInfo' by specifying the flow type name of the provided 'FlowType'.
-withName :: Text -> FlowType -> FlowTypeInfo
-withName n = named n . nameless
-
+-- | Drop any 'Named' subexpressions and instead just keep the 'Ref' to the type.
+toReferenced :: FlowTypeInfo -> FlowTypeRef
+toReferenced = para toReferencedRAlg
+    where
+        toReferencedRAlg :: FlowTypeInfoF (Fix FlowTypeInfoF, FlowTypeRef) -> FlowTypeRef
+        toReferencedRAlg (R1 n)     = Fix . R1 . Ref $ namedName n
+        toReferencedRAlg (L1 infoF) = Fix $ toReferenced . fst <$> L1 infoF
 
 
 type Env = [(Text, FlowTypeRef)]
-
 
 -- | Get the list of all named types referenced in a given 'FlowTypeInfo'.
 getEnv :: FlowTypeInfo -> Env
@@ -130,14 +141,6 @@ mkEnv = go []
         topNames :: FlowTypeInfo -> [Text]
         topNames (Fix (L1 _)) = []
         topNames (Fix (R1 r)) = [namedName r]
-
--- | Drop any 'Named' subexpressions and instead just keep the 'Ref' to the type.
-toReferenced :: FlowTypeInfo -> FlowTypeRef
-toReferenced = para toReferencedRAlg
-    where
-        toReferencedRAlg :: FlowTypeInfoF (Fix FlowTypeInfoF, FlowTypeRef) -> FlowTypeRef
-        toReferencedRAlg (R1 n)     = Fix . R1 . Ref $ namedName n
-        toReferencedRAlg (L1 infoF) = Fix $ toReferenced . fst <$> L1 infoF
 
 
 ------------------------------------------------------------------------------------------

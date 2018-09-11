@@ -212,7 +212,7 @@ renderFullClientWithDefs endpoints = do
 
 renderTypeDefs :: [Req FlowTypeInfo] -> CodeGen ()
 renderTypeDefs endpoints =
-    forM_ (nubBy ((==) `on` fst) $ endpoints >>= getAllTypes >>= getEnv)
+    forM_ (sortOn fst . nubBy ((==) `on` fst) $ endpoints >>= getAllTypes >>= getEnv)
         $ \(name, ty) -> tell $ renderTypeDef name ty <> "\n\n"
 
 renderTypeDef :: Text -> FlowTypeRef -> Text

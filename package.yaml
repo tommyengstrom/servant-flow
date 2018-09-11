@@ -82,3 +82,5 @@ tests:
     - servant-flow
     - servant-server
     - hspec
+
+tested-with: GHC == 8.4.3, GHC == 8.2.2, GHC == 8.0.2

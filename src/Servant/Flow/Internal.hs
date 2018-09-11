@@ -124,28 +124,20 @@ toReferenced = para toReferencedRAlg
         toReferencedRAlg (L1 infoF) = Fix $ toReferenced . fst <$> L1 infoF
 
 
-type Env = [(Text, FlowTypeRef)]
 
 -- | Get the list of all named types referenced in a given 'FlowTypeInfo'.
-getEnv :: FlowTypeInfo -> Env
-getEnv = (fmap . fmap $ toReferenced) . mkEnv
-
--- Some kind of variation on a 'para'.
--- Needs the list to stop recusion on self-referencing flow types.
-mkEnv :: FlowTypeInfo -> [(Text, FlowTypeInfo)]
-mkEnv = go []
+getEnv :: FlowTypeInfo -> [(Text, FlowTypeRef)]
+getEnv = (fmap . fmap $ toReferenced) . go []
     where
+        -- Some kind of variation on a 'para'.
+        -- Needs the list to stop recusion on self-referencing flow types.
         go :: [Text] -> FlowTypeInfo -> [(Text, FlowTypeInfo)]
         go ns fx = case unfix fx of
-            L1 l -> concat $ go (ns <> topNames fx) <$> l
+            L1 l -> concat $ go ns <$> l
             R1 (Named n b)
                 | n `elem` ns -> []
                 | otherwise   -> ((n, b) :) . concat . toList $
-                    go (ns <> topNames fx) <$> unfix b
-
-        topNames :: FlowTypeInfo -> [Text]
-        topNames (Fix (L1 _)) = []
-        topNames (Fix (R1 r)) = [namedName r]
+                    go (n : ns) <$> unfix b
 
 
 ------------------------------------------------------------------------------------------

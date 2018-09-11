@@ -42,7 +42,6 @@ import           Servant.Flow.CodeGen
 import           Servant.Flow.Internal
 import           Servant.Foreign
 
-
 data LangFlow
 
 instance Flow a => HasForeignType LangFlow FlowTypeInfo a where

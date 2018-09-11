@@ -1,7 +1,12 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE StrictData         #-}
 
-module Servant.Flow.Internal where
+module Servant.Flow.Internal
+
+    ( module Servant.Flow.Internal
+    , Fix (..)
+
+) where
 
 import           Data.Aeson            (Options (..), defaultOptions)
 import           Data.Bifunctor        (first)

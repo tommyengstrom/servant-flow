@@ -106,45 +106,38 @@ withName :: Text -> FlowType -> FlowTypeInfo
 withName n = named n . nameless
 
 
-type Env = [(Text, FlowTypeInfo)]
 
+type Env = [(Text, FlowTypeRef)]
+
+
+-- | Get the list of all named types referenced in a given 'FlowTypeInfo'.
 getEnv :: FlowTypeInfo -> Env
-getEnv = para getEnvR
+getEnv = (fmap . fmap $ toReferenced) . mkEnv
 
---      :: RAlgebra FlowTypeInfoF Env
-getEnvR :: FlowTypeInfoF (a, [(Text, a)]) -> [(Text, a)]
-getEnvR (L1 fpair)                    = snd =<< toList fpair
-getEnvR (R1 (Named name (body, env))) = [(name, body)] <> env
+-- Some kind of variation on a 'para'.
+-- Needs the list to stop recusion on self-referencing flow types.
+mkEnv :: FlowTypeInfo -> [(Text, FlowTypeInfo)]
+mkEnv = go []
+    where
+        go :: [Text] -> FlowTypeInfo -> [(Text, FlowTypeInfo)]
+        go ns fx = case unfix fx of
+            L1 l -> concat $ go (ns <> topNames fx) <$> l
+            R1 (Named n b)
+                | n `elem` ns -> []
+                | otherwise   -> ((n, b) :) . concat . toList $
+                    go (ns <> topNames fx) <$> unfix b
 
-
-type RefEnv = [(Text, FlowTypeRef)]
-
-getRefEnv :: FlowTypeInfo -> RefEnv
-getRefEnv = toRefEnv . getEnv
-
-
-toRefEnv :: Env -> RefEnv
-toRefEnv = fmap . fmap $ toReferenced
+        topNames :: FlowTypeInfo -> [Text]
+        topNames (Fix (L1 _)) = []
+        topNames (Fix (R1 r)) = [namedName r]
 
 -- | Drop any 'Named' subexpressions and instead just keep the 'Ref' to the type.
---   Importantly, it drops any name at the top-level of the expression.
 toReferenced :: FlowTypeInfo -> FlowTypeRef
-toReferenced = toRef . dropTopName
+toReferenced = para toReferencedRAlg
     where
-        toRef :: FlowTypeInfo -> FlowTypeRef
-        toRef = para toReferencedAlg
-
-        --              :: RAlgebra FlowTypeInfoF FlowTypeRef
-        toReferencedAlg :: FlowTypeInfoF (Fix FlowTypeInfoF, FlowTypeRef) -> FlowTypeRef
-        toReferencedAlg (R1 n)     = Fix . R1 . Ref $ namedName n
-        toReferencedAlg (L1 infoF) = Fix $ toRef . fst <$> L1 infoF
-
-        dropTopName :: FlowTypeInfo -> FlowTypeInfo
-        dropTopName = dropTopNameF . unfix
-
-        dropTopNameF :: FlowTypeInfoF FlowTypeInfo -> FlowTypeInfo
-        dropTopNameF (L1 x) = Fix $ L1 x
-        dropTopNameF (R1 n) = namedBody n
+        toReferencedRAlg :: FlowTypeInfoF (Fix FlowTypeInfoF, FlowTypeRef) -> FlowTypeRef
+        toReferencedRAlg (R1 n)     = Fix . R1 . Ref $ namedName n
+        toReferencedRAlg (L1 infoF) = Fix $ toReferenced . fst <$> L1 infoF
 
 
 ------------------------------------------------------------------------------------------

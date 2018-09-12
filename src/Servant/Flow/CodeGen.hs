@@ -212,16 +212,6 @@ renderEndpoints r endpoints = forM_ endpoints $ \endpoint -> do
     renderEndpointFunction r endpoint
     tell "\n\n"
 
-renderFullClient :: Rendering -> [Req FlowTypeInfo] -> CodeGen ()
-renderFullClient r endpoints = do
-    activateFlow <- asks cgActivateFlow
-    when activateFlow $ tell "// @flow \n"
-    renderClientFunction
-    tell "\n"
-    forM_ endpoints $ \endpoint -> do
-        renderEndpointFunction r endpoint
-        tell "\n\n"
-
 renderFullClientWithDefs :: [Req FlowTypeInfo] -> CodeGen ()
 renderFullClientWithDefs endpoints = do
     activateFlow <- asks cgActivateFlow

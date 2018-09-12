@@ -109,7 +109,7 @@ block g = do
 
 renderClientFunction :: CodeGen ()
 renderClientFunction = do
-    line "const axios = require('axios')"
+    line "const axios = require('axios')\n"
     line "function createClient"
     parens $ do
         line "token/* : string */,"
@@ -121,7 +121,7 @@ renderClientFunction = do
             block $ line "Authorization: token"
             tell ","
             line "baseURL: baseURL"
-    line "module.exports.createClient = createClient"
+    line "module.exports.createClient = createClient\n"
 
 getFuncName :: Req FlowTypeInfo -> CodeGen Text
 getFuncName req = do
@@ -215,7 +215,9 @@ renderEndpoints r endpoints = forM_ endpoints $ \endpoint -> do
 renderFullClient :: Rendering -> [Req FlowTypeInfo] -> CodeGen ()
 renderFullClient r endpoints = do
     activateFlow <- asks cgActivateFlow
-    when activateFlow $ tell "// @flow \n\n"
+    when activateFlow $ tell "// @flow \n"
+    renderClientFunction
+    tell "\n"
     forM_ endpoints $ \endpoint -> do
         renderEndpointFunction r endpoint
         tell "\n\n"
@@ -223,8 +225,9 @@ renderFullClient r endpoints = do
 renderFullClientWithDefs :: [Req FlowTypeInfo] -> CodeGen ()
 renderFullClientWithDefs endpoints = do
     activateFlow <- asks cgActivateFlow
-    when activateFlow $ tell "// @flow \n\n"
-
+    when activateFlow $ tell "// @flow \n"
+    renderClientFunction
+    tell "\n"
     renderTypeDefs endpoints
     renderEndpoints Referenced endpoints
 

@@ -4,7 +4,6 @@ import qualified Data.Text            as T
 import           GHC.Generics         (Generic)
 import           Servant
 import           Servant.Flow
-import           Servant.Flow.CodeGen
 import           Test.Hspec
 
 
@@ -24,5 +23,4 @@ main = hspec $ do
     describe "Generate API client" $ do
         it "Outputs something" $ do
             putStrLn . T.unpack $ T.replicate 80 "-"
-            putStrLn . T.unpack $ execCodeGen defaultCodeGenOptions renderClientFunction
             putStrLn . T.unpack $ generateFlowClient (Proxy @API) defaultCodeGenOptions

@@ -1,13 +1,11 @@
 module Main where
 
--- import           Data.Text                            (Text)
--- import qualified Data.Text                            as T
+import           Data.Maybe
 import           Network.Wai.Handler.Warp
 import           Network.Wai.Middleware.Cors
 import           Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import           Servant
 import           TestAPI
-import Data.Maybe
 
 server :: Server API
 server = captureServer

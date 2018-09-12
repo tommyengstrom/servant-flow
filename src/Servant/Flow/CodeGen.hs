@@ -27,16 +27,18 @@ execCodeGen opts g = view _3 $ runCodeGen' g opts
 
 -- | Options for how to generate the API client
 data CodeGenOptions = CodeGenOptions
-    { cgRenderFunctionName :: FunctionName -> Text -- ^ Name of endpoint function
-    , cgIndentSize         :: Int
-    , cgActivateFlow       :: Bool
+    { cgRenderFunctionName    :: FunctionName -> Text -- ^ Name of endpoint function
+    , cgIndentSize            :: Int  -- ^ number of spaces to indent by
+    , cgActivateFlow          :: Bool -- ^ Include the flow comment to activate type checking
+    , cgIncludeClientFunction :: Bool -- ^ Include function to create the Axios client
     }
 
 defaultCodeGenOptions :: CodeGenOptions
 defaultCodeGenOptions = CodeGenOptions
-    { cgRenderFunctionName = camelCase
-    , cgIndentSize         = 4
-    , cgActivateFlow       = True
+    { cgRenderFunctionName    = camelCase
+    , cgIndentSize            = 4
+    , cgActivateFlow          = True
+    , cgIncludeClientFunction = True
     }
 
 -- | Print indented
@@ -216,7 +218,8 @@ renderFullClientWithDefs :: [Req FlowTypeInfo] -> CodeGen ()
 renderFullClientWithDefs endpoints = do
     activateFlow <- asks cgActivateFlow
     when activateFlow $ tell "// @flow \n"
-    renderClientFunction
+    includeClient <- asks cgIncludeClientFunction
+    when includeClient renderClientFunction
     tell "\n"
     renderTypeDefs endpoints
     renderEndpoints Referenced endpoints

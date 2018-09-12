@@ -193,7 +193,7 @@ renderEndpointFunction r req = do
         renderUrl :: [Segment FlowTypeInfo] -> CodeGen ()
         renderUrl []     = pure ()
         renderUrl (Segment (Cap (Arg (PathSegment n) ty)):ss) = do
-            let param = if isString (forgetNames ty) then n else n <> ".toString()"
+            let param = if isString ty then n else n <> ".toString()"
             line $ "encodeURIComponent(" <> param <> ")"
             unless (null ss) $ tell ","
             renderUrl ss
@@ -202,17 +202,9 @@ renderEndpointFunction r req = do
             unless (null ss) $ tell ","
             renderUrl ss
 
-
-isString :: FlowType -> Bool
-isString ft = case ft of
-    Fix (Prim p) -> case p of
-        String    -> True
-        Number    -> False
-        Boolean   -> False
-        Any       -> False
-        AnyObject -> False
-        Void      -> False
-    Fix _ -> False
+        isString :: FlowTypeInfo -> Bool
+        isString (Fix (L1 (Prim String))) = True
+        isString _                        = False
 
 
 renderEndpoints :: Rendering -> [Req FlowTypeInfo] -> CodeGen ()

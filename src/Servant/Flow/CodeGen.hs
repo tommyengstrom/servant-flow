@@ -237,9 +237,11 @@ renderFullClientWithDefs endpoints = do
     renderEndpoints Referenced endpoints
 
 renderTypeDefs :: [Req FlowTypeInfo] -> CodeGen ()
-renderTypeDefs endpoints =
+renderTypeDefs endpoints = do
+    tell "/*::\n\n"
     forM_ (sortOn fst . nubBy ((==) `on` fst) $ endpoints >>= getAllTypes >>= getEnv)
         $ \(name, ty) -> tell $ renderTypeDef name ty <> "\n\n"
+    tell "*/\n\n"
 
 renderTypeDef :: Text -> FlowTypeRef -> Text
 renderTypeDef tyName ty = "type " <> tyName <> " = " <> renderFlowTypeWithReferences ty

@@ -35,10 +35,15 @@ resolver: lts-12.2
 #  - wai
 packages:
 - .
+- integration-test
 # Dependency packages to be pulled from upstream that are not in the resolver
 # using the same syntax as the packages field.
 # (e.g., acme-missiles-0.3)
-# extra-deps: []
+extra-deps:
+
+    - git: git://github.com/fieldstrength/recursed.git
+      commit: 23488874e25417dd47f3714ec29022ab5de2dbbf
+
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

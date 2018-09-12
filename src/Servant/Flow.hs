@@ -3,13 +3,16 @@ module Servant.Flow
 
     ( -- ** Classes and basic types
       FlowType
-    , FlowTyped (..)
+    , Flow (..)
     , genericFlowType
     , renderFlowType
     , FlowObjectKey
 
-    -- *** Primative types
-    , primBoolean, primNumber, primString, primAny, primAnyObject
+    -- ** FlowTypeInfo for primative types
+    , primBoolean, primNumber, primString, primAny, primAnyObject, primVoid
+
+    -- ** Names and functions for converting FlowTypeInfo
+    , nameless, withName, named, forgetNames
 
     -- ** Code generation
     , CodeGenOptions (..)
@@ -18,6 +21,7 @@ module Servant.Flow
     , generateClientFunction
     , getEndpoints
     , generateFlowClient
+    , generateEndpoints
 
     -- ** Aeson rexports
     , Options (..)
@@ -34,7 +38,6 @@ import           Data.Aeson            (Options (..), SumEncoding (..), defaultO
                                         defaultTaggedObject)
 import           Data.Proxy
 import           Data.Text             (Text)
-import qualified Data.Text             as T
 import           Servant.Flow.CodeGen
 import           Servant.Flow.Internal
 import           Servant.Foreign
@@ -42,20 +45,29 @@ import           Servant.Foreign
 
 data LangFlow
 
-instance FlowTyped a => HasForeignType LangFlow FlowType a where
-    typeFor _ _ = flowType
+instance Flow a => HasForeignType LangFlow FlowTypeInfo a where
+    typeFor _ _ = flowTypeInfo
 
-getEndpoints :: ( HasForeign LangFlow FlowType api
-                , GenerateList FlowType (Foreign FlowType api))
-               => Proxy api -> [Req FlowType]
-getEndpoints = listFromAPI (Proxy @LangFlow) (Proxy @FlowType)
+getEndpoints :: ( HasForeign LangFlow FlowTypeInfo api
+                , GenerateList FlowTypeInfo (Foreign FlowTypeInfo api))
+               => Proxy api -> [Req FlowTypeInfo]
+getEndpoints = listFromAPI (Proxy @LangFlow) (Proxy @FlowTypeInfo)
 
-generateFlowClient :: ( HasForeign LangFlow FlowType api
-                      , GenerateList FlowType (Foreign FlowType api))
+generateFlowClient :: ( HasForeign LangFlow FlowTypeInfo api
+                      , GenerateList FlowTypeInfo (Foreign FlowTypeInfo api))
                    => Proxy api -> CodeGenOptions -> Text
-generateFlowClient apiProxy opts = T.intercalate "\n\n"
-                            . fmap (flip runCodeGen opts . renderFun)
-                            $ getEndpoints apiProxy
+generateFlowClient apiProxy opts
+    = execCodeGen opts
+    . renderFullClientWithDefs
+    $ getEndpoints apiProxy
+
+generateEndpoints :: ( HasForeign LangFlow FlowTypeInfo api
+                     , GenerateList FlowTypeInfo (Foreign FlowTypeInfo api))
+                  => Proxy api -> CodeGenOptions -> Rendering -> Text
+generateEndpoints apiProxy opts rend
+    = execCodeGen opts
+    . renderFullClient rend
+    $ getEndpoints apiProxy
 
 generateClientFunction :: CodeGenOptions -> Text
-generateClientFunction = runCodeGen renderClientFunction
+generateClientFunction opts = execCodeGen opts renderClientFunction

@@ -9,7 +9,8 @@ stack exec server &
 pid=$!
 cd js
 npm install
+# npm install flow-typed
+./node_modules/.bin/flow-typed update
 npm run flow
 npm test
 kill $pid
-

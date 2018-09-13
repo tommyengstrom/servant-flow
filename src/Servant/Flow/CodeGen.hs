@@ -92,15 +92,13 @@ getCaptureArgs req = mapMaybe getArg $ req ^. reqUrl . path
         getArg (Segment (Cap a))     = Just a
 
 getQueryArgs :: Req FlowTypeInfo -> [Arg FlowTypeInfo]
-getQueryArgs = fmap fromQueryArg . view (reqUrl . queryStr)
+getQueryArgs = fmap _queryArgName . view (reqUrl . queryStr)
 
--- FIXME: Handle QueryParams combinator properly
--- Uncomment the body below, and override paramsSerializer in axios client
-fromQueryArg :: QueryArg FlowTypeInfo -> Arg FlowTypeInfo
-fromQueryArg (QueryArg arg        Normal) = arg
-fromQueryArg (QueryArg (Arg p ty) Flag)   = Arg p . Fix . L1 $ Nullable ty
-fromQueryArg (QueryArg (Arg p ty) List)   = Arg p ty  -- Arg p (Fix . L1 $ Array ty)
-
+mkOptionsType :: Req FlowTypeInfo -> FlowTypeInfo
+mkOptionsType r = Fix . L1 . Object . fmap mkOptsField $ view (reqUrl . queryStr) r
+    where
+        mkOptsField :: QueryArg FlowTypeInfo -> PropertyF FlowTypeInfo
+        mkOptsField (QueryArg (Arg p ty) _argTy) = OptionalProperty (unPathSegment p) ty
 
 parens :: CodeGen a -> CodeGen a
 parens g = do
@@ -167,6 +165,7 @@ renderEndpointFunction r req = do
                      . fromMaybe (Fix . L1 $ Prim Void)
                      $ _reqReturnType req
 
+        -- FIXME: This is just another flowtype and it should be rendered as such
         renderAllArgs :: CodeGen ()
         renderAllArgs = do
             line "client /* : any */,"
@@ -174,7 +173,7 @@ renderEndpointFunction r req = do
             unless (null qParams) $ do
                 unless (null args) $ tell ","
                 line "opts /* : "
-                block $ renderArgs False qParams
+                tell . renderType r $ mkOptionsType req
                 tell " */"
 
         renderArgs :: Bool -> [Arg FlowTypeInfo] -> CodeGen ()

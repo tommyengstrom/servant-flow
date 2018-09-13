@@ -58,7 +58,7 @@ test('getQueryparamBool - flag set', () => api.getQueryparamBool(client, {true: 
     }))
 
 // Query flags may be omitted
-test('getQueryparamBool - flag unset', () => api.getQueryparamBool(client, {true: null})
+test('getQueryparamBool - flag unset', () => api.getQueryparamBool(client, {})
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe(false)

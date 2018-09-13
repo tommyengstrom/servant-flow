@@ -59,6 +59,8 @@ data Lit
 data PropertyF a
     -- | A regular object field
     = Property Text a
+    -- | A field which may be omitted
+    | OptionalProperty Text a
     -- | A 'Map'-like field with a specific key type.
     | IndexerProperty a a
     deriving (Show, Eq, Functor, Traversable, Foldable)
@@ -314,6 +316,7 @@ renderPrimative Void      = "void"
 
 renderProperty :: PropertyF Text -> Text
 renderProperty (Property fieldName ty)    = fieldName <> ": " <> ty
+renderProperty (OptionalProperty key ty)  = key <> "?: " <> ty
 renderProperty (IndexerProperty keyTy ty) = "[" <> keyTy <> "]: " <> ty
 
 renderFlowTypeWithReferences :: FlowTypeRef -> Text

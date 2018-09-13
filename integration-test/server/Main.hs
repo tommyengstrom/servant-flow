@@ -7,6 +7,7 @@ import           Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import           Servant
 import           TestAPI
 
+
 server :: Server API
 server = captureServer
     :<|> queryParamServer
@@ -17,20 +18,12 @@ captureServer = pure :<|> pure :<|> pure :<|> pure
 
 queryParamServer :: Server QueryParamAPI
 queryParamServer = pure . fromMaybe 42
-              :<|> pure . fromMaybe ""
-              :<|> pure . fromMaybe False
+              :<|> pure . mconcat
+              :<|> pure
               :<|> pure . fromMaybe ToUpper
 
 reqBodyServer :: Server ReqBodyAPI
 reqBodyServer = pure :<|> pure :<|> pure :<|> pure :<|> pure :<|> pure
-
---     :<|> user
---
--- changeCase :: Transformation -> Maybe Int -> Bool -> Handler Text
--- changeCase a b c = pure . T.pack $ show (a, b, c)
---
--- user :: Text -> Handler BigAssRecord
--- user _ = pure $ BAR 1 False ToUpper
 
 
 app :: Application

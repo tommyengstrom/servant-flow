@@ -44,16 +44,24 @@ test('getQueryparamInt', () => api.getQueryparamInt(client, {value: 66})
         expect(response.data).toBe(66)
     }))
 
-test('getQueryparamText', () => api.getQueryparamText(client, {value: "howdy!"})
+// 'QueryParams' parameters can be specified more than once
+test('getQueryparamTexts', () => api.getQueryparamTexts(client, {value: ["FOO", "BAR"]})
     .then(response => {
         expect(response.status).toBe(200)
-        expect(response.data).toBe("howdy!")
+        expect(response.data).toBe("FOOBAR")
     }))
 
-test('getQueryparamBool', () => api.getQueryparamBool(client, {value: true})
+test('getQueryparamBool - flag set', () => api.getQueryparamBool(client, {true: true})
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe(true)
+    }))
+
+// Query flags may be omitted
+test('getQueryparamBool - flag unset', () => api.getQueryparamBool(client, {true: null})
+    .then(response => {
+        expect(response.status).toBe(200)
+        expect(response.data).toBe(false)
     }))
 
 
@@ -99,4 +107,3 @@ test('postReqbodyByBar', () => api.postReqbodyBar(client, bar)
         expect(response.status).toBe(200)
         expect(response.data).toEqual(bar)
     }))
-

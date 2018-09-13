@@ -31,10 +31,10 @@ type CaptureAPI
     :<|> "trans" :> Capture "trans" Transformation :> Get '[JSON] Transformation
 
 type QueryParamAPI
-    =    "int"   :> QueryParam "value" Int            :> Get '[JSON] Int
-    :<|> "text"  :> QueryParam "value" Text           :> Get '[JSON] Text
-    :<|> "bool"  :> QueryParam "value" Bool           :> Get '[JSON] Bool
-    :<|> "trans" :> QueryParam "value" Transformation :> Get '[JSON] Transformation
+    =    "int"   :> QueryParam  "value" Int            :> Get '[JSON] Int
+    :<|> "texts" :> QueryParams "value" Text           :> Get '[JSON] Text
+    :<|> "bool"  :> QueryFlag   "true"                 :> Get '[JSON] Bool
+    :<|> "trans" :> QueryParam  "value" Transformation :> Get '[JSON] Transformation
 
 type ReqBodyAPI
     =    "int"   :> ReqBody '[JSON] Int             :> Post '[JSON] Int
@@ -48,10 +48,9 @@ data BigAssRecord = BAR
     { barFoo            :: Int
     , barBool           :: Bool
     , barTransformation :: Transformation
-    -- , barTime           :: UTCTime
     } deriving (Show, Generic, FromJSON, ToJSON, Flow)
 
 data RecursiveRecord = RR
-    { rrRec :: Maybe RecursiveRecord
+    { rrRec   :: Maybe RecursiveRecord
     , rrValue :: Text
     } deriving (Show, Generic, FromJSON, ToJSON, Flow)

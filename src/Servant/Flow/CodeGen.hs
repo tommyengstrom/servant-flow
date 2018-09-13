@@ -1,6 +1,6 @@
 module Servant.Flow.CodeGen where
 
-import           Control.Lens
+import           Control.Lens          hiding (List)
 import           Control.Monad.Reader
 import           Control.Monad.RWS     hiding (Any)
 import           Data.Function         (on)
@@ -72,15 +72,17 @@ indentLess = modify (\i -> max (i -1) 0)
 renderFlowTypeInComment :: Rendering -> FlowTypeInfo -> Text
 renderFlowTypeInComment r ty = "/* : " <> renderType r ty <> " */"
 
-renderArg :: Rendering -> Arg FlowTypeInfo -> Text
-renderArg r (Arg (PathSegment name) t) = name <> " " <> renderFlowTypeInComment r t
-
 renderFlowTypeOneLine :: Rendering -> FlowTypeInfo -> Text
 renderFlowTypeOneLine r = T.replace "\n" " " . renderType r
 
 
 renderArgNoComment :: Rendering -> Arg FlowTypeInfo -> Text
-renderArgNoComment r (Arg (PathSegment name) t) = name <> " : " <> renderFlowTypeOneLine r t
+renderArgNoComment r (Arg (PathSegment name) t) =
+    name <> " : " <> renderFlowTypeOneLine r t
+
+renderArg :: Rendering -> Arg FlowTypeInfo -> Text
+renderArg r (Arg (PathSegment name) t) = name <> " " <> renderFlowTypeInComment r t
+
 
 getCaptureArgs :: Req a -> [Arg a]
 getCaptureArgs req = mapMaybe getArg $ req ^. reqUrl . path
@@ -89,8 +91,16 @@ getCaptureArgs req = mapMaybe getArg $ req ^. reqUrl . path
         getArg (Segment (Static _ )) = Nothing
         getArg (Segment (Cap a))     = Just a
 
-getQueryArgs :: Req a -> [Arg a]
-getQueryArgs = fmap (view queryArgName) . view (reqUrl . queryStr)
+getQueryArgs :: Req FlowTypeInfo -> [Arg FlowTypeInfo]
+getQueryArgs = fmap fromQueryArg . view (reqUrl . queryStr)
+
+-- FIXME: Handle QueryParams combinator properly
+-- Uncomment the body below, and override paramsSerializer in axios client
+fromQueryArg :: QueryArg FlowTypeInfo -> Arg FlowTypeInfo
+fromQueryArg (QueryArg arg        Normal) = arg
+fromQueryArg (QueryArg (Arg p ty) Flag)   = Arg p . Fix . L1 $ Nullable ty
+fromQueryArg (QueryArg (Arg p ty) List)   = Arg p ty  -- Arg p (Fix . L1 $ Array ty)
+
 
 parens :: CodeGen a -> CodeGen a
 parens g = do
@@ -144,6 +154,7 @@ renderEndpointFunction r req = do
         args = (getCaptureArgs req)
             <> maybe [] (\t -> [Arg (PathSegment "data") t]) (req ^. reqBody)
 
+        -- Query parameters and query flags
         qParams :: [Arg FlowTypeInfo]
         qParams = getQueryArgs req
 
@@ -156,9 +167,8 @@ renderEndpointFunction r req = do
                      . fromMaybe (Fix . L1 $ Prim Void)
                      $ _reqReturnType req
 
-
         renderAllArgs :: CodeGen ()
-        renderAllArgs  = do
+        renderAllArgs = do
             line "client /* : any */,"
             renderArgs True args
             unless (null qParams) $ do

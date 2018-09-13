@@ -29,7 +29,7 @@ execCodeGen opts g = view _3 $ runCodeGen' g opts
 data CodeGenOptions = CodeGenOptions
     { cgRenderFunctionName    :: FunctionName -> Text -- ^ Name of endpoint function
     , cgIndentSize            :: Int  -- ^ number of spaces to indent by
-    , cgActivateFlow          :: Bool -- ^ Include the flow comment to activate type checking
+    , cgActivateFlow          :: Bool -- ^ Include annotation to activate type checking
     , cgIncludeClientFunction :: Bool -- ^ Include function to create the Axios client
     }
 

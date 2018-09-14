@@ -75,25 +75,25 @@ test('getQueryparamTrans', () => api.getQueryparamTrans(client, {value: "ToUpper
 //
 // reqbody api
 //
-test('postReqbodyByInt', () => api.postReqbodyInt(client, 66)
+test('postReqbodyInt', () => api.postReqbodyInt(client, 66)
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe(66)
     }))
 
-test('postReqbodyByText', () => api.postReqbodyText(client, "howdy!")
+test('postReqbodyText', () => api.postReqbodyText(client, "howdy!")
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe("howdy!")
     }))
 
-test('postReqbodyByBool', () => api.postReqbodyBool(client, true)
+test('postReqbodyBool', () => api.postReqbodyBool(client, true)
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe(true)
     }))
 
-test('postReqbodyByTrans', () => api.postReqbodyTrans(client, "ToUpper")
+test('postReqbodyTrans', () => api.postReqbodyTrans(client, "ToUpper")
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toBe("ToUpper")
@@ -101,9 +101,16 @@ test('postReqbodyByTrans', () => api.postReqbodyTrans(client, "ToUpper")
 
 let bar = { barFoo: 8, barBool: true, barTransformation: "ToUpper" }
 
-
-test('postReqbodyByBar', () => api.postReqbodyBar(client, bar)
+test('postReqbodyBar', () => api.postReqbodyBar(client, bar)
     .then(response => {
         expect(response.status).toBe(200)
         expect(response.data).toEqual(bar)
+    }))
+
+let rr = { rrValue: "abc", rrRec: { rrValue: "xyz", rrRec: null}}
+
+test('postReqbodyList', () => api.postReqbodyList(client, [rr,rr])
+    .then(response => {
+        expect(response.status).toBe(200)
+        expect(response.data).toEqual([rr,rr])
     }))

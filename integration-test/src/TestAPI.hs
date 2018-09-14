@@ -37,12 +37,12 @@ type QueryParamAPI
     :<|> "trans" :> QueryParam  "value" Transformation :> Get '[JSON] Transformation
 
 type ReqBodyAPI
-    =    "int"   :> ReqBody '[JSON] Int             :> Post '[JSON] Int
-    :<|> "text"  :> ReqBody '[JSON] Text            :> Post '[JSON] Text
-    :<|> "bool"  :> ReqBody '[JSON] Bool            :> Post '[JSON] Bool
-    :<|> "trans" :> ReqBody '[JSON] Transformation  :> Post '[JSON] Transformation
-    :<|> "bar"   :> ReqBody '[JSON] BigAssRecord    :> Post '[JSON] BigAssRecord
-    :<|> "rr"    :> ReqBody '[JSON] RecursiveRecord :> Post '[JSON] RecursiveRecord
+    =    "int"   :> ReqBody '[JSON] Int               :> Post '[JSON] Int
+    :<|> "text"  :> ReqBody '[JSON] Text              :> Post '[JSON] Text
+    :<|> "bool"  :> ReqBody '[JSON] Bool              :> Post '[JSON] Bool
+    :<|> "trans" :> ReqBody '[JSON] Transformation    :> Post '[JSON] Transformation
+    :<|> "bar"   :> ReqBody '[JSON] BigAssRecord      :> Post '[JSON] BigAssRecord
+    :<|> "list"  :> ReqBody '[JSON] [RecursiveRecord] :> Post '[JSON] [RecursiveRecord]
 
 data BigAssRecord = BAR
     { barFoo            :: Int

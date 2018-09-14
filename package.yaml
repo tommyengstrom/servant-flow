@@ -49,9 +49,7 @@ default-extensions:
 - OverloadedStrings
 - ScopedTypeVariables
 - TypeApplications
-- TypeFamilies
 - TypeOperators
-- TypeSynonymInstances
 
 ghc-options:
 - -Wall -Werror

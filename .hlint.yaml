@@ -24,9 +24,7 @@ arguments:
     - -XOverloadedStrings
     - -XScopedTypeVariables
     - -XTypeApplications
-    - -XTypeFamilies
     - -XTypeOperators
-    - -XTypeSynonymInstances
 
 # Control which extensions/flags/modules/functions can be used
 #

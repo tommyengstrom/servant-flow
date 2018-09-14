@@ -149,8 +149,8 @@ renderEndpointFunction r req = do
     where
         -- Captures and request body
         args :: [Arg FlowTypeInfo]
-        args = (getCaptureArgs req)
-            <> maybe [] (\t -> [Arg (PathSegment "data") t]) (req ^. reqBody)
+        args = getCaptureArgs req <>
+            maybe [] (\t -> [Arg (PathSegment "data") t]) (req ^. reqBody)
 
         -- Query parameters and query flags
         qParams :: [Arg FlowTypeInfo]

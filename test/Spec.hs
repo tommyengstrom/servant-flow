@@ -19,8 +19,8 @@ type API = "changeCase"
 
 
 main :: IO ()
-main = hspec $ do
-    describe "Generate API client" $ do
+main = hspec .
+    describe "Generate API client" .
         it "Outputs something" $ do
             putStrLn . T.unpack $ T.replicate 80 "-"
             putStrLn . T.unpack $ generateFlowClient (Proxy @API) defaultCodeGenOptions

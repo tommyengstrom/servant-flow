@@ -50,7 +50,7 @@ data PrimType
     deriving (Show, Eq)
 
 -- | Literal value types
-data Lit
+newtype Lit
     = LitString Text
     deriving (Show, Eq)
 

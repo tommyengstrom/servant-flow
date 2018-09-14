@@ -36,22 +36,22 @@ dependencies:
 - recursion-schemes
 
 default-extensions:
+- DataKinds
+- DefaultSignatures
+- DeriveAnyClass
+- DeriveFoldable
+- DeriveFunctor
+- DeriveGeneric
+- DeriveTraversable
 - FlexibleContexts
 - FlexibleInstances
 - MultiParamTypeClasses
 - OverloadedStrings
 - ScopedTypeVariables
 - TypeApplications
-- TypeSynonymInstances
-- TypeOperators
-- DataKinds
-- DeriveGeneric
-- DeriveAnyClass
-- DeriveFunctor
-- DeriveFoldable
-- DeriveTraversable
-- DefaultSignatures
 - TypeFamilies
+- TypeOperators
+- TypeSynonymInstances
 
 ghc-options:
 - -Wall -Werror

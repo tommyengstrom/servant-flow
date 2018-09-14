@@ -1,8 +1,8 @@
 module TestAPI where
 
 import           Data.Aeson
-import           Data.Text             (Text)
-import           GHC.Generics          (Generic)
+import           Data.Text    (Text)
+import           GHC.Generics (Generic)
 import           Servant
 import           Servant.Flow
 

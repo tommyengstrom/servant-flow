@@ -1,7 +1,7 @@
-import           Data.Aeson           (FromJSON, ToJSON)
-import           Data.Text            (Text)
-import qualified Data.Text            as T
-import           GHC.Generics         (Generic)
+import           Data.Aeson   (FromJSON, ToJSON)
+import           Data.Text    (Text)
+import qualified Data.Text    as T
+import           GHC.Generics (Generic)
 import           Servant
 import           Servant.Flow
 import           Test.Hspec

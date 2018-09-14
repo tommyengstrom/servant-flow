@@ -1,5 +1,4 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE StrictData         #-}
+{-# LANGUAGE StrictData #-}
 
 module Servant.Flow.Internal
 

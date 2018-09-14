@@ -241,7 +241,8 @@ renderTypeDefs endpoints = do
     tell "*/\n\n"
 
 renderTypeDef :: Text -> FlowTypeRef -> Text
-renderTypeDef tyName ty = "type " <> tyName <> " = " <> renderFlowTypeWithReferences ty
+renderTypeDef tyName ty = "export type " <> tyName <> " = "
+    <> renderFlowTypeWithReferences ty
 
 
 getAllTypes :: Req flowTy -> [flowTy]

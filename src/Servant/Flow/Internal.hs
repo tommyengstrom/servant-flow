@@ -102,12 +102,12 @@ withName :: Text -> FlowType -> FlowTypeInfo
 withName n = named n . nameless
 
 -- | Discard all type name information in the 'FlowTypeInfo' leaving just the 'FlowType'.
-forgetNames :: FlowTypeInfo -> FlowType
-forgetNames = cata forgetNamesF
+dropNames :: FlowTypeInfo -> FlowType
+dropNames = cata dropNamesF
     where
-        forgetNamesF :: (FlowTypeF :+: Named) FlowType -> FlowType
-        forgetNamesF (L1 ty) = Fix ty
-        forgetNamesF (R1 r)  = namedBody r
+        dropNamesF :: (FlowTypeF :+: Named) FlowType -> FlowType
+        dropNamesF (L1 ty) = Fix ty
+        dropNamesF (R1 r)  = namedBody r
 
 dropTopName :: FlowTypeInfo -> FlowTypeInfo
 dropTopName (Fix (L1 ty)) = Fix (L1 ty)
@@ -277,7 +277,7 @@ instance (GSimpleSum f, GSimpleSum g) => GSimpleSum (f :+: g) where
 data Rendering = Flattened | Referenced
 
 renderType :: Rendering -> FlowTypeInfo -> Text
-renderType Flattened  = renderFlowType . forgetNames
+renderType Flattened  = renderFlowType . dropNames
 renderType Referenced = renderFlowTypeWithReferences . toReferenced
 
 

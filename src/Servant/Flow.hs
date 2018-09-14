@@ -12,7 +12,7 @@ module Servant.Flow
     , primBoolean, primNumber, primString, primAny, primAnyObject, primVoid
 
     -- ** Names and functions for converting FlowTypeInfo
-    , nameless, withName, named, forgetNames, dropTopName
+    , nameless, withName, named, dropNames, dropTopName
 
     -- ** Code generation
     , CodeGenOptions (..)

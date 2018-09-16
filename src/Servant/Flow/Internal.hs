@@ -4,6 +4,7 @@ module Servant.Flow.Internal
 
     ( module Servant.Flow.Internal
     , Fix (..)
+    , (:+:) (..)
 
 ) where
 
@@ -112,6 +113,10 @@ dropNames = cata dropNamesF
 dropTopName :: FlowTypeInfo -> FlowTypeInfo
 dropTopName (Fix (L1 ty)) = Fix (L1 ty)
 dropTopName (Fix (R1 ty)) = namedBody ty
+
+getTopName :: FlowTypeInfo -> Maybe Text
+getTopName (Fix (R1 n)) = Just $ namedName n
+getTopName _            = Nothing
 
 
 -- | A Reference to a defined flow type. Differs from 'Named' in that it does not also

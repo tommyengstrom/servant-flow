@@ -290,8 +290,8 @@ inParens t = "(" <> t <> ")"
 inBrackets :: Text -> Text
 inBrackets t = "{ " <> t <> " }"
 
-inSuperBrackets :: Text -> Text
-inSuperBrackets t = "{| " <> t <> " |}"
+inBananaBrackets :: Text -> Text
+inBananaBrackets t = "{| " <> t <> " |}"
 
 
 renderFlowType :: FlowType -> Text
@@ -304,7 +304,7 @@ renderFlowTypeF (Array a)       = inParens a <> "[]"
 renderFlowTypeF (Sum l)         = T.intercalate " | " l
 renderFlowTypeF (Literal lit)   = showLiteral lit
 renderFlowTypeF (Object ps)     = inBrackets . T.intercalate ", " $ renderProperty <$> ps
-renderFlowTypeF (ExactObject l) = inSuperBrackets . T.intercalate ", " $
+renderFlowTypeF (ExactObject l) = inBananaBrackets . T.intercalate ", " $
     (\(n, t) -> n <> " : " <> t) <$> l
 renderFlowTypeF (Promise t)     = "Promise<" <> t <> ">"
 

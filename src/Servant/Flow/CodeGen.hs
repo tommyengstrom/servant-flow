@@ -64,11 +64,14 @@ indented g = do
     indentLess
     pure a
 
-parens :: CodeGen a -> CodeGen a
-parens = blockWith "(" ")"
+parenBlock :: CodeGen a -> CodeGen a
+parenBlock = blockWith "(" ")"
 
-block :: CodeGen a -> CodeGen a
-block = blockWith "{" "}"
+braceBlock :: CodeGen a -> CodeGen a
+braceBlock = blockWith "{" "}"
+
+bananaBlock :: CodeGen a -> CodeGen a
+bananaBlock = blockWith "{|" "|}"
 
 blockWith :: Text -> Text -> CodeGen a -> CodeGen a
 blockWith open close cg = do
@@ -117,14 +120,14 @@ renderClientFunction :: CodeGen ()
 renderClientFunction = do
     line "const axios = require('axios')\n"
     line "function createClient"
-    parens $ do
+    parenBlock $ do
         line "token/* : string */,"
         line "baseURL/* : string */"
-    block $ do
+    braceBlock $ do
         line "return axios.create"
-        parens . block $ do
+        parenBlock . braceBlock $ do
             line "headers: "
-            block $ line "Authorization: token"
+            braceBlock $ line "Authorization: token"
             tell ","
             line "baseURL: baseURL"
     line "module.exports.createClient = createClient\n"
@@ -138,9 +141,9 @@ renderEndpointFunction :: Rendering -> Req FlowTypeInfo -> CodeGen ()
 renderEndpointFunction r req = do
     funName <- getFuncName req
     line $ "function " <> funName
-    parens renderAllArgs
+    parenBlock renderAllArgs
     renderReturnType
-    block renderBody
+    braceBlock renderBody
     line $ "module.exports." <> funName <> " = " <> funName
     where
         -- Captures and request body
@@ -184,7 +187,7 @@ renderEndpointFunction r req = do
         renderBody :: CodeGen ()
         renderBody = do
             line "return client"
-            parens . block $ do
+            parenBlock . braceBlock $ do
                 line "url: ["
                 indented $ do
                     renderUrl $ req ^. reqUrl . path
@@ -283,7 +286,7 @@ genFlowTypeF (Array cg)      = genParens cg *> tell "[]"
 genFlowTypeF (Sum l)         = sequence_ $ intersperse (tell " | ") l
 genFlowTypeF (Literal lit)   = tell $ showLiteral lit
 genFlowTypeF (Promise cg)    = tell "Promise<" *> cg *> tell ">"
-genFlowTypeF (Object props)  = block . indented . sequence_ $ props <&> \p ->
+genFlowTypeF (Object props)  = braceBlock . indented . sequence_ $ props <&> \p ->
     genProperty p
 genFlowTypeF (ExactObject l) = blockWith "{|" "|}" . sequence_ $
     l <&> \(name, cg) ->

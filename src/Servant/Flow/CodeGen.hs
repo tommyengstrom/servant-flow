@@ -1,6 +1,6 @@
 module Servant.Flow.CodeGen where
 
-import           Control.Lens          hiding (List)
+import           Control.Lens          hiding (List, para)
 import           Control.Monad.Reader
 import           Control.Monad.RWS     hiding (Any, Sum)
 import           Data.Function         (on)
@@ -274,22 +274,36 @@ genTypeDef tyName ty = do
 
 
 genFlowType :: FlowTypeRef -> CodeGen ()
-genFlowType = cata $ \case
-    L1 ty  -> genFlowTypeF ty
-    R1 ref -> tell $ unRef ref
+genFlowType = para $ \case
+    L1 x -> genFlowTypeF x
+    R1 r -> tell $ unRef r
 
-genFlowTypeF :: FlowTypeF (CodeGen ()) -> CodeGen ()
-genFlowTypeF (Prim prim)     = tell $ renderPrimative prim
-genFlowTypeF (Nullable cg)   = tell "?" *> genParens cg
-genFlowTypeF (Array cg)      = genParens cg *> tell "[]"
-genFlowTypeF (Sum l)         = sequence_ $ intersperse (tell " | ") l
-genFlowTypeF (Literal lit)   = tell $ showLiteral lit
-genFlowTypeF (Promise cg)    = tell "Promise<" *> cg *> tell ">"
-genFlowTypeF (Object props)  = braceBlock . sequence_ $ props <&> \p ->
-    genProperty p
-genFlowTypeF (ExactObject l) = blockWith "{|" "|}" . sequence_ $
-    l <&> \(name, cg) ->
-        line (name <> " : ") *> cg *> tell ","
+genFlowTypeF :: FlowTypeF (FlowTypeRef, CodeGen ()) -> CodeGen ()
+genFlowTypeF (Prim prim)       = tell $ renderPrimative prim
+genFlowTypeF (Nullable (ty, cg))
+    | needParensNull ty        = tell "?" *> genParens cg
+    | otherwise                = tell "?" *> cg
+genFlowTypeF (Array (ty, cg))
+    | needParensArray ty       = genParens cg *> tell "[]"
+    | otherwise                = cg           *> tell "[]"
+genFlowTypeF (Sum l)           = sequence_ $ intersperse (tell " | ") $ snd <$> l
+genFlowTypeF (Literal lit)     = tell $ showLiteral lit
+genFlowTypeF (Promise (_, cg)) = tell "Promise<" *> cg *> tell ">"
+genFlowTypeF (Object props)    = braceBlock . sequence_ $ props <&> \p ->
+    genProperty (snd <$> p)
+genFlowTypeF (ExactObject l)   = blockWith "{|" "|}" . sequence_ $ l <&> \(name, p) ->
+        line (name <> " : ") *> (snd p) *> tell ","
+
+-- expressions that need parens when under 'Nullable'
+needParensNull :: FlowTypeRef -> Bool
+needParensNull (Fix (L1 (Sum _))) = True
+needParensNull _                  = False
+
+-- expressions that need parens when under 'Array'.
+needParensArray :: FlowTypeRef -> Bool
+needParensArray (Fix (L1 (Sum _)))      = True
+needParensArray (Fix (L1 (Nullable _))) = True
+needParensArray _                       = False
 
 genParens :: CodeGen a -> CodeGen a
 genParens cg = tell "(" *> cg <* tell ")"

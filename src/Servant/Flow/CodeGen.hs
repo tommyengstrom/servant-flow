@@ -164,7 +164,6 @@ renderEndpointFunction r req = do
                      . fromMaybe (Fix . L1 $ Prim Void)
                      $ _reqReturnType req
 
-        -- FIXME: This is just another flowtype and it should be rendered as such
         renderAllArgs :: CodeGen ()
         renderAllArgs = do
             line "client /* : any */,"
@@ -172,7 +171,7 @@ renderEndpointFunction r req = do
             unless (null qParams) $ do
                 unless (null args) $ tell ","
                 line "opts /* : "
-                tell . renderType r $ mkOptionsType req
+                genFlowType . toReferenced $ mkOptionsType req
                 tell " */"
 
         renderArgs :: Bool -> [Arg FlowTypeInfo] -> CodeGen ()
@@ -286,7 +285,7 @@ genFlowTypeF (Array cg)      = genParens cg *> tell "[]"
 genFlowTypeF (Sum l)         = sequence_ $ intersperse (tell " | ") l
 genFlowTypeF (Literal lit)   = tell $ showLiteral lit
 genFlowTypeF (Promise cg)    = tell "Promise<" *> cg *> tell ">"
-genFlowTypeF (Object props)  = braceBlock . indented . sequence_ $ props <&> \p ->
+genFlowTypeF (Object props)  = braceBlock . sequence_ $ props <&> \p ->
     genProperty p
 genFlowTypeF (ExactObject l) = blockWith "{|" "|}" . sequence_ $
     l <&> \(name, cg) ->

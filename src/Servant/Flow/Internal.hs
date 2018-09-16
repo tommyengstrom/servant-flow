@@ -116,7 +116,7 @@ dropTopName (Fix (R1 ty)) = namedBody ty
 
 -- | A Reference to a defined flow type. Differs from 'Named' in that it does not also
 --   keep the value of the referenced type expression.
-newtype Ref a = Ref Text deriving (Functor, Show)
+newtype Ref a = Ref { unRef :: Text } deriving (Functor, Show)
 
 type FlowTypeRef = Fix (FlowTypeF :+: Ref)
 
@@ -132,7 +132,7 @@ toReferenced = para toReferencedRAlg
 
 -- | Get the list of all named types referenced in a given 'FlowTypeInfo'.
 getEnv :: FlowTypeInfo -> [(Text, FlowTypeRef)]
-getEnv = (fmap . fmap $ toReferenced) . go []
+getEnv = fmap (fmap toReferenced) . go []
     where
         -- Some kind of variation on a 'para'.
         -- Needs the list to stop recusion on self-referencing flow types.

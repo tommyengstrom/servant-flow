@@ -45,6 +45,7 @@ default-extensions:
 - DeriveTraversable
 - FlexibleContexts
 - FlexibleInstances
+- LambdaCase
 - MultiParamTypeClasses
 - OverloadedStrings
 - ScopedTypeVariables

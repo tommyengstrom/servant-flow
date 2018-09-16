@@ -2,8 +2,10 @@ module Servant.Flow.CodeGen where
 
 import           Control.Lens          hiding (List)
 import           Control.Monad.Reader
-import           Control.Monad.RWS     hiding (Any)
+import           Control.Monad.RWS     hiding (Any, Sum)
 import           Data.Function         (on)
+import           Data.Functor          ((<&>))
+import           Data.Functor.Foldable
 import           Data.List
 import           Data.Maybe
 import           Data.Monoid           ((<>))
@@ -62,11 +64,22 @@ indented g = do
     indentLess
     pure a
 
+parens :: CodeGen a -> CodeGen a
+parens = blockWith "(" ")"
+
+block :: CodeGen a -> CodeGen a
+block = blockWith "{" "}"
+
+blockWith :: Text -> Text -> CodeGen a -> CodeGen a
+blockWith open close cg = do
+    tell open
+    indented $ cg <* line close
+
 indentMore :: CodeGen ()
 indentMore = modify (+1)
 
 indentLess :: CodeGen ()
-indentLess = modify (\i -> max (i -1) 0)
+indentLess = modify $ max 0 . subtract 1
 
 
 renderFlowTypeInComment :: Rendering -> FlowTypeInfo -> Text
@@ -99,23 +112,6 @@ mkOptionsType r = Fix . L1 . Object . fmap mkOptsField $ view (reqUrl . queryStr
     where
         mkOptsField :: QueryArg FlowTypeInfo -> PropertyF FlowTypeInfo
         mkOptsField (QueryArg (Arg p ty) _argTy) = OptionalProperty (unPathSegment p) ty
-
-parens :: CodeGen a -> CodeGen a
-parens g = do
-    tell "("
-    indented $ do
-        a <- g
-        line ")"
-        pure a
-
-block :: CodeGen a -> CodeGen a
-block g = do
-    tell "{"
-    indented $ do
-        a <- g
-        line "}"
-        pure a
-
 
 renderClientFunction :: CodeGen ()
 renderClientFunction = do
@@ -237,7 +233,7 @@ renderTypeDefs :: [Req FlowTypeInfo] -> CodeGen ()
 renderTypeDefs endpoints = do
     tell "/*::\n\n"
     forM_ (sortOn fst . nubBy ((==) `on` fst) $ endpoints >>= getAllTypes >>= getEnv)
-        $ \(name, ty) -> tell $ renderTypeDef name ty <> "\n\n"
+        $ \(name, ty) -> genTypeDef name ty *> tell "\n\n"
     tell "*/\n\n"
 
 renderTypeDef :: Text -> FlowTypeRef -> Text
@@ -262,3 +258,41 @@ getAllTypes r = catMaybes (_reqBody r : _reqReturnType r : fromURL (_reqUrl r))
 
         fromHeader :: HeaderArg a -> a
         fromHeader = fromArg . _headerArg
+
+
+------------------------------------------------------------------------------------------
+--  Type CodeGen
+------------------------------------------------------------------------------------------
+
+
+genTypeDef :: Text -> FlowTypeRef -> CodeGen ()
+genTypeDef tyName ty = do
+    tell $ "export type " <> tyName <> " = "
+    genFlowType ty
+
+
+genFlowType :: FlowTypeRef -> CodeGen ()
+genFlowType = cata $ \case
+    L1 ty  -> genFlowTypeF ty
+    R1 ref -> tell $ unRef ref
+
+genFlowTypeF :: FlowTypeF (CodeGen ()) -> CodeGen ()
+genFlowTypeF (Prim prim)     = tell $ renderPrimative prim
+genFlowTypeF (Nullable cg)   = tell "?" *> genParens cg
+genFlowTypeF (Array cg)      = genParens cg *> tell "[]"
+genFlowTypeF (Sum l)         = sequence_ $ intersperse (tell " | ") l
+genFlowTypeF (Literal lit)   = tell $ showLiteral lit
+genFlowTypeF (Promise cg)    = tell "Promise<" *> cg *> tell ">"
+genFlowTypeF (Object props)  = block . indented . sequence_ $ props <&> \p ->
+    genProperty p
+genFlowTypeF (ExactObject l) = blockWith "{|" "|}" . sequence_ $
+    l <&> \(name, cg) ->
+        line (name <> " : ") *> cg *> tell ","
+
+genParens :: CodeGen a -> CodeGen a
+genParens cg = tell "(" *> cg <* tell ")"
+
+genProperty :: PropertyF (CodeGen ()) -> CodeGen ()
+genProperty (Property fieldName ty)    = line (fieldName <> ": ") *> ty *> tell ","
+genProperty (OptionalProperty key ty)  = line (key <> "?: ") *> ty *> tell ","
+genProperty (IndexerProperty keyTy ty) = line "[" *> keyTy *> tell "]: " *> ty *> tell ","

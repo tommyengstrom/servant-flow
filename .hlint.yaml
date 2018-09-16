@@ -20,6 +20,7 @@ arguments:
     - -XDeriveTraversable
     - -XFlexibleContexts
     - -XFlexibleInstances
+    - -XLambdaCase
     - -XMultiParamTypeClasses
     - -XOverloadedStrings
     - -XScopedTypeVariables

@@ -108,6 +108,13 @@ forgetNames = cata forgetNamesF
         forgetNamesF (L1 ty) = Fix ty
         forgetNamesF (R1 r)  = namedBody r
 
+dropTypeName :: FlowTypeInfo -> FlowTypeInfo
+dropTypeName (Fix (L1 ty)) = Fix (L1 ty)
+dropTypeName (Fix (R1 ty)) = namedBody ty
+
+getTypeName :: FlowTypeInfo -> Maybe Text
+getTypeName (Fix (R1 n)) = Just $ namedName n
+getTypeName _            = Nothing
 
 
 -- | A Reference to a defined flow type. Differs from 'Named' in that it does not also

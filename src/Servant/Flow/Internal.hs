@@ -5,6 +5,7 @@ module Servant.Flow.Internal
 
     ( module Servant.Flow.Internal
     , Fix (..)
+    , (:+:) (..)
 
 ) where
 

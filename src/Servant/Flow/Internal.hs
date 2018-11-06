@@ -13,6 +13,7 @@ import           Data.Bifunctor        (first)
 import           Data.Foldable         (toList)
 import           Data.Functor.Foldable
 import           Data.Int              (Int64)
+import           Data.List.NonEmpty    (NonEmpty (..))
 import           Data.Map              (Map)
 import           Data.Monoid           ((<>))
 import           Data.Proxy
@@ -204,6 +205,10 @@ instance Flow a => Flow (Maybe a) where
     flowTypeInfo _ = Fix . L1 . Nullable $ flowTypeInfo (Proxy @a)
 
 instance Flow a => Flow [a] where
+    flowTypeInfo _ = Fix . L1 . Array $ flowTypeInfo (Proxy @a)
+
+-- | NOTE: This instance is potentially subject to future change
+instance Flow a => Flow (NonEmpty a) where
     flowTypeInfo _ = Fix . L1 . Array $ flowTypeInfo (Proxy @a)
 
 instance (Ord a, Flow a) => Flow (Set a) where

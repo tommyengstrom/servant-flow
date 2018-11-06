@@ -103,20 +103,20 @@ withName :: Text -> FlowType -> FlowTypeInfo
 withName n = named n . nameless
 
 -- | Discard all type name information in the 'FlowTypeInfo' leaving just the 'FlowType'.
-dropNames :: FlowTypeInfo -> FlowType
-dropNames = cata dropNamesF
+dropAllNames :: FlowTypeInfo -> FlowType
+dropAllNames = cata dropNamesF
     where
         dropNamesF :: (FlowTypeF :+: Named) FlowType -> FlowType
         dropNamesF (L1 ty) = Fix ty
         dropNamesF (R1 r)  = namedBody r
 
-dropTopName :: FlowTypeInfo -> FlowTypeInfo
-dropTopName (Fix (L1 ty)) = Fix (L1 ty)
-dropTopName (Fix (R1 ty)) = namedBody ty
+dropTypeName :: FlowTypeInfo -> FlowTypeInfo
+dropTypeName (Fix (L1 ty)) = Fix (L1 ty)
+dropTypeName (Fix (R1 ty)) = namedBody ty
 
-getTopName :: FlowTypeInfo -> Maybe Text
-getTopName (Fix (R1 n)) = Just $ namedName n
-getTopName _            = Nothing
+getTypeName :: FlowTypeInfo -> Maybe Text
+getTypeName (Fix (R1 n)) = Just $ namedName n
+getTypeName _            = Nothing
 
 
 -- | A Reference to a defined flow type. Differs from 'Named' in that it does not also
@@ -282,7 +282,7 @@ instance (GSimpleSum f, GSimpleSum g) => GSimpleSum (f :+: g) where
 data Rendering = Flattened | Referenced
 
 renderType :: Rendering -> FlowTypeInfo -> Text
-renderType Flattened  = renderFlowType . dropNames
+renderType Flattened  = renderFlowType . dropAllNames
 renderType Referenced = renderFlowTypeWithReferences . toReferenced
 
 

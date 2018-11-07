@@ -119,6 +119,10 @@ getTypeName :: FlowTypeInfo -> Maybe Text
 getTypeName (Fix (R1 n)) = Just $ namedName n
 getTypeName _            = Nothing
 
+renameType :: Text -> FlowTypeInfo -> FlowTypeInfo
+renameType newName (Fix (R1 n)) = Fix . R1 $ n {namedName = newName}
+renameType _       fty          = fty
+
 
 -- | A Reference to a defined flow type. Differs from 'Named' in that it does not also
 --   keep the value of the referenced type expression.

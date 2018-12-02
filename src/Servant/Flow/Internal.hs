@@ -236,7 +236,7 @@ class GFlow f where
     gFlowType :: Options -> f x -> FlowTypeInfo
 
 -- Single-constructor records
-instance (GFlowRecordFields f, Datatype m1) => GFlow (D1 m1 (C1 m2 f)) where
+instance {-# OVERLAPPABLE #-} (GFlowRecordFields f, Datatype m1) => GFlow (D1 m1 (C1 m2 f)) where
     gFlowType opts _
         = named (T.pack $ datatypeName (undefined :: D1 m1 (C1 m2 f) ()))
         . Fix . L1 . ExactObject
@@ -244,11 +244,11 @@ instance (GFlowRecordFields f, Datatype m1) => GFlow (D1 m1 (C1 m2 f)) where
         $ recordFields (undefined :: f ())
 
 -- Simple sum types
-instance (GSimpleSum (f :+: g), Datatype m) => GFlow (D1 m (f :+: g)) where
+instance {-# OVERLAPPABLE #-} (GSimpleSum cs, Datatype m) => GFlow (D1 m cs) where
     gFlowType opts _
-        = named (T.pack $ datatypeName (undefined :: D1 m (f :+: g) ()))
+        = named (T.pack $ datatypeName (undefined :: D1 m cs ()))
         . Fix . L1 . Sum . fmap (Fix . L1 . Literal . LitString)
-        $ simpleSumOptions opts (undefined :: (f :+: g) ())
+        $ simpleSumOptions opts (undefined :: cs ())
 
 -- Use an instance that already exists
 instance Flow a => GFlow (K1 i a) where

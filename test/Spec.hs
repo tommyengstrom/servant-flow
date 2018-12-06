@@ -7,7 +7,7 @@ import           Servant.Flow
 import           Test.Hspec
 
 
-data Transformation = ToUpper | ToLower
+data Transformation = ToUpper
     deriving (Show, Generic, ToJSON, FromJSON, Flow)
 
 type API = "changeCase"

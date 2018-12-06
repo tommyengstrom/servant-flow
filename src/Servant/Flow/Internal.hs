@@ -266,6 +266,53 @@ instance (GFlowRecordFields f, GFlowRecordFields g) => GFlowRecordFields (f :*: 
     recordFields _ = recordFields (undefined :: f ()) <> recordFields (undefined :: g ())
 
 
+-- Constructor helper class
+class GFlowField f where
+    flowField :: f x -> FieldInfo
+
+data FieldInfo
+    = AnonField FlowTypeInfo
+    | RecordField String FlowTypeInfo
+
+
+instance (Flow a, Selector s) => GFlowField (S1 s (K1 R a)) where
+    flowField _ =
+        RecordField
+            (selName (undefined :: S1 s (K1 R a) ()))
+            $ flowTypeInfo (Proxy @a)
+
+
+class GFlowConstructorFields f where
+    constructorFields :: f x -> [FieldInfo]
+
+instance (GFlowField f, GFlowField g) => GFlowConstructorFields (f :*: g) where
+    constructorFields _ =
+           [flowField (undefined :: f ())]
+        <> [flowField (undefined :: g ())]
+
+
+
+{-
+
+ data X = A | B String Int deriving Generic
+  :kind! (Rep X)
+(Rep X) :: * -> *
+= D1
+    ('MetaData "X" "Ghci2" "interactive" 'False)
+    (C1 ('MetaCons "A" 'PrefixI 'False) U1
+     :+: C1
+           ('MetaCons "B" 'PrefixI 'False)
+           (S1
+              ('MetaSel
+                 'Nothing 'NoSourceUnpackedness 'NoSourceStrictness 'DecidedLazy)
+              (Rec0 String)
+            :*: S1
+                  ('MetaSel
+                     'Nothing 'NoSourceUnpackedness 'NoSourceStrictness 'DecidedLazy)
+                  (Rec0 Int)))
+-}
+
+
 -- Simple sum type helper class
 class GSimpleSum f where
     simpleSumOptions :: Options -> f x -> [Text]

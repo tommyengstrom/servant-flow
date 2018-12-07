@@ -1,4 +1,5 @@
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Servant.Flow.Internal
 
@@ -223,6 +224,9 @@ instance (Ord k, FlowObjectKey k, Flow a) => Flow (Map k a) where
         [IndexerProperty primString $ flowTypeInfo (Proxy @a)]
 
 
+
+
+
 -- | Arbitrary types cannot be object keys but need string representation
 --   "Data.Aeson.ToJSONKey" has more complex functionality than we support.
 class FlowObjectKey a
@@ -266,14 +270,20 @@ instance (GFlowRecordFields f, GFlowRecordFields g) => GFlowRecordFields (f :*: 
     recordFields _ = recordFields (undefined :: f ()) <> recordFields (undefined :: g ())
 
 
--- Constructor helper class
-class GFlowField f where
-    flowField :: f x -> FieldInfo
+
+
+
 
 data FieldInfo
     = AnonField FlowTypeInfo
     | RecordField String FlowTypeInfo
 
+data FlowConstructor = FlowConstructor [FieldInfo]
+
+
+-- Constructor helper class
+class GFlowField f where
+    flowField :: f x -> FieldInfo
 
 instance (Flow a, Selector s) => GFlowField (S1 s (K1 R a)) where
     flowField _ =
@@ -281,18 +291,43 @@ instance (Flow a, Selector s) => GFlowField (S1 s (K1 R a)) where
             (selName (undefined :: S1 s (K1 R a) ()))
             $ flowTypeInfo (Proxy @a)
 
-
 class GFlowConstructorFields f where
     constructorFields :: f x -> [FieldInfo]
 
-instance (GFlowField f, GFlowField g) => GFlowConstructorFields (f :*: g) where
-    constructorFields _ =
-           [flowField (undefined :: f ())]
-        <> [flowField (undefined :: g ())]
+-- Rather than using UndecidableInstances here, maybe just define the instance directly
+-- in terms of S1.
+instance GFlowField f => GFlowConstructorFields f where
+    constructorFields _ = pure @[] $ flowField (undefined :: f ())
 
+instance (GFlowConstructorFields f, GFlowConstructorFields g)
+    => GFlowConstructorFields (f :*: g) where
+        constructorFields _ =
+               constructorFields (undefined :: f ())
+            <> constructorFields (undefined :: g ())
+
+class GFlowConstructor f where
+    constructors :: f x -> [FlowConstructor]
+
+instance GFlowConstructorFields f => GFlowConstructor (C1 m f) where
+    constructors _ = [FlowConstructor $ constructorFields (undefined :: f ()) ]
+
+instance (GFlowConstructor f, GFlowConstructor g) => GFlowConstructor (f :+: g) where
+    constructors _ = constructors (undefined :: f ())
+                  <> constructors (undefined :: g ())
+
+
+data FieldError = Unexpected [FieldInfo]
+
+data ProperConstructor
+    = AnonConstructor [FlowTypeInfo]
+    | RecordConstructor [(String, FlowTypeInfo)]
+
+mkProperConstructor :: FlowConstructor -> Either FieldError ProperConstructor
+mkProperConstructor = undefined
 
 
 {-
+
 
  data X = A | B String Int deriving Generic
   :kind! (Rep X)

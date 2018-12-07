@@ -3,7 +3,7 @@ version:             0.1.0.0
 github:              "henrylabs/servant-flow"
 license:             BSD3
 author:              "Tommy Engström, Cliff Harvey"
-maintainer:          "tommy@hihenry.com"
+maintainer:          "tommy@hihenry.com, cliff@hihenry.com"
 copyright:           "2018 Henry Labs"
 
 extra-source-files:

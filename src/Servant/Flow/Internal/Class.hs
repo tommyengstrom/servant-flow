@@ -143,6 +143,17 @@ data FieldInfo
     = AnonField FlowTypeInfo
     | RecordField String FlowTypeInfo
 
+instance Show FieldInfo where
+    show (AnonField fTy)             = unwords
+        [ "AnonField"
+        , T.unpack (renderType Referenced fTy)
+        ]
+    show (RecordField fieldName fTy) = unwords
+        [ "RecordField"
+        , show fieldName
+        , T.unpack (renderType Referenced fTy)
+        ]
+
 data FlowConstructor = FlowConstructor [FieldInfo]
 
 
@@ -181,7 +192,7 @@ instance (GFlowConstructor f, GFlowConstructor g) => GFlowConstructor (f :+: g) 
                   <> constructors (undefined :: g ())
 
 
-data FieldError = Unexpected [FieldInfo]
+data FieldError = Unexpected [FieldInfo] deriving Show
 
 data ProperConstructor
     = AnonConstructor [FlowTypeInfo]

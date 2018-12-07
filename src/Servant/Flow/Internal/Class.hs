@@ -198,6 +198,18 @@ data ProperConstructor
     = AnonConstructor [FlowTypeInfo]
     | RecordConstructor [(String, FlowTypeInfo)]
 
+data FlowDatatype = FlowDatatype [ProperConstructor]
+
+
+
+class GFlowDatatype f where
+    gFlowDatatype :: f x -> FlowDatatype
+
+instance GFlowConstructor f => GFlowDatatype (D1 m f) where
+    gFlowDatatype _ = either (\er -> error (show er)) FlowDatatype $
+        traverse mkProperConstructor (constructors $ (undefined :: f ()))
+
+
 mkProperConstructor :: FlowConstructor -> Either FieldError ProperConstructor
 mkProperConstructor = undefined
 

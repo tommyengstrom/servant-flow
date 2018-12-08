@@ -230,17 +230,27 @@ instance GFlowConstructor f => GFlowDatatype (D1 m f) where
         traverse mkProperConstructor (constructors $ (undefined :: f ()))
 
 
+
 mkProperConstructor :: FlowConstructor -> Either FieldError ProperConstructor
 mkProperConstructor = undefined
 
 encodeFlowUnion :: FlowDatatype -> Options -> FlowTypeInfo
 encodeFlowUnion (FlowDatatype cs) opts = Fix . L1 . Sum $
     cs <&> \c -> case sumEncoding opts of
-        TaggedObject tag contents -> Fix . L1 $ ExactObject
-            [ ( T.pack tag
-              , Fix . L1 . Literal . LitString . constrMod $ getConstructorName c)
-            , (T.pack contents, encodeFlowConstructor c)
-            ]
+        TaggedObject tag contents -> Fix . L1 . ExactObject $
+            case encodeFlowConstructor c of
+                (Fix (L1 (ExactObject l))) -> tagProperty c : l
+                _                          ->
+                    [ tagProperty c
+                    , (T.pack contents, encodeFlowConstructor c)
+                    ]
+            where
+                tagProperty x
+                    = (T.pack tag,)
+                    . Fix . L1 . Literal . LitString
+                    . constrMod
+                    $ getConstructorName x
+
         UntaggedValue             -> encodeFlowConstructor c
         ObjectWithSingleField     -> Fix . L1 $ ExactObject
             [(constrMod $ getConstructorName c, encodeFlowConstructor c)]
@@ -248,6 +258,8 @@ encodeFlowUnion (FlowDatatype cs) opts = Fix . L1 . Sum $
 
     where
         constrMod = T.pack . constructorTagModifier opts . T.unpack
+
+
 
 --encodeFlowConstructor :: ProperConstructor -> Options -> FlowTypeInfo
 encodeFlowConstructor :: ProperConstructor -> FlowTypeInfo

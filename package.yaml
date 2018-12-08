@@ -51,6 +51,7 @@ default-extensions:
 - ScopedTypeVariables
 - TypeApplications
 - TypeOperators
+- TupleSections
 - StandaloneDeriving
 
 ghc-options:

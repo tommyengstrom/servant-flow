@@ -3,7 +3,7 @@
 
 module Servant.Flow.Internal.Class where
 
-import           Data.Aeson                 (Options (..), defaultOptions)
+import           Data.Aeson                 (Options (..), defaultOptions, SumEncoding (..))
 import           Data.Bifunctor             (first)
 import           Data.Functor.Foldable
 import           Data.Int                   (Int64)
@@ -19,7 +19,7 @@ import           Data.Time                  (Day, LocalTime, UTCTime)
 import           GHC.Generics
 import           Servant.API                (NoContent)
 import           Servant.Flow.Internal.Core
-
+import Data.Functor
 
 ------------------------------------------------------------------------------------------
 --  Classes
@@ -135,6 +135,22 @@ instance (GFlowRecordFields f, GFlowRecordFields g) => GFlowRecordFields (f :*: 
     recordFields _ = recordFields (undefined :: f ()) <> recordFields (undefined :: g ())
 
 
+-- Simple sum type helper class
+class GSimpleSum f where
+    simpleSumOptions :: Options -> f x -> [Text]
+
+instance Constructor meta => GSimpleSum (M1 C meta U1) where
+    simpleSumOptions opts _
+        = pure
+        . fromString
+        . constructorTagModifier opts
+        $ conName (undefined :: C1 meta U1 ())
+
+instance (GSimpleSum f, GSimpleSum g) => GSimpleSum (f :+: g) where
+    simpleSumOptions opts _ =
+        simpleSumOptions opts (undefined :: f ()) <>
+        simpleSumOptions opts (undefined :: g ())
+
 
 
 
@@ -195,8 +211,12 @@ instance (GFlowConstructor f, GFlowConstructor g) => GFlowConstructor (f :+: g) 
 data FieldError = Unexpected [FieldInfo] deriving Show
 
 data ProperConstructor
-    = AnonConstructor [FlowTypeInfo]
-    | RecordConstructor [(String, FlowTypeInfo)]
+    = AnonConstructor Text [FlowTypeInfo]
+    | RecordConstructor Text [(String, FlowTypeInfo)]
+
+getConstructorName :: ProperConstructor -> Text
+getConstructorName (AnonConstructor   constName _) = constName
+getConstructorName (RecordConstructor constName _) = constName
 
 data FlowDatatype = FlowDatatype [ProperConstructor]
 
@@ -213,19 +233,22 @@ instance GFlowConstructor f => GFlowDatatype (D1 m f) where
 mkProperConstructor :: FlowConstructor -> Either FieldError ProperConstructor
 mkProperConstructor = undefined
 
+encodeFlowUnion :: FlowDatatype -> Options -> FlowTypeInfo
+encodeFlowUnion (FlowDatatype cs) opts = Fix . L1 . Sum $
+    cs <&> \c -> case sumEncoding opts of
+        TaggedObject tag contents -> Fix . L1 $ ExactObject
+            [ ( T.pack tag
+              , Fix . L1 . Literal . LitString . constrMod $ getConstructorName c)
+            , (T.pack contents, encodeFlowConstructor c)
+            ]
+        UntaggedValue             -> encodeFlowConstructor c
+        ObjectWithSingleField     -> Fix . L1 $ ExactObject
+            [(constrMod $ getConstructorName c, encodeFlowConstructor c)]
+        TwoElemArray              -> Fix . L1 $ Array primAny
 
--- Simple sum type helper class
-class GSimpleSum f where
-    simpleSumOptions :: Options -> f x -> [Text]
+    where
+        constrMod = T.pack . constructorTagModifier opts . T.unpack
 
-instance Constructor meta => GSimpleSum (M1 C meta U1) where
-    simpleSumOptions opts _
-        = pure
-        . fromString
-        . constructorTagModifier opts
-        $ conName (undefined :: C1 meta U1 ())
-
-instance (GSimpleSum f, GSimpleSum g) => GSimpleSum (f :+: g) where
-    simpleSumOptions opts _ =
-        simpleSumOptions opts (undefined :: f ()) <>
-        simpleSumOptions opts (undefined :: g ())
+--encodeFlowConstructor :: ProperConstructor -> Options -> FlowTypeInfo
+encodeFlowConstructor :: ProperConstructor -> FlowTypeInfo
+encodeFlowConstructor = undefined

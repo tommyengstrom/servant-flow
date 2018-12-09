@@ -235,8 +235,10 @@ mkProperConstructor :: FlowConstructor -> Either FieldError ProperConstructor
 mkProperConstructor = undefined
 
 encodeFlowUnion :: FlowDatatype -> Options -> FlowTypeInfo
-encodeFlowUnion (FlowDatatype cs) opts = Fix . L1 . Sum $
-    cs <&> \c -> case sumEncoding opts of
+encodeFlowUnion (FlowDatatype [c]) opts
+    | not (tagSingleConstructors opts) = encodeFlowConstructor c
+encodeFlowUnion (FlowDatatype cs) opts =
+    Fix . L1 . Sum $ cs <&> \c -> case sumEncoding opts of
         TaggedObject tag contents -> Fix . L1 . ExactObject $
             case encodeFlowConstructor c of
                 (Fix (L1 (ExactObject l))) -> tagProperty c : l

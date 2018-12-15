@@ -208,7 +208,9 @@ instance (GFlowConstructor f, GFlowConstructor g) => GFlowConstructor (f :+: g) 
                   <> constructors (undefined :: g ())
 
 
-data FieldError = Unexpected [FieldInfo] deriving Show
+data FieldError
+    = Unexpected [FieldInfo]
+    deriving Show
 
 data ProperConstructor
     = AnonConstructor Text [FlowTypeInfo]
@@ -236,33 +238,39 @@ mkProperConstructor = undefined
 
 encodeFlowUnion :: FlowDatatype -> Options -> FlowTypeInfo
 encodeFlowUnion (FlowDatatype [c]) opts
-    | not (tagSingleConstructors opts) = encodeFlowConstructor c
+    | not (tagSingleConstructors opts) = encodeFlowConstructor opts c
+    -- Not "Encode types with a single constructor as sums, so that
+    -- allNullaryToStringTag and sumEncoding apply."
 encodeFlowUnion (FlowDatatype cs) opts =
     Fix . L1 . Sum $ cs <&> \c -> case sumEncoding opts of
         TaggedObject tag contents -> Fix . L1 . ExactObject $
-            case encodeFlowConstructor c of
+            case summandType of
                 (Fix (L1 (ExactObject l))) -> tagProperty c : l
                 _                          ->
                     [ tagProperty c
-                    , (T.pack contents, encodeFlowConstructor c)
+                    , (T.pack contents, summandType)
                     ]
             where
-                tagProperty x
+                summandType = encodeFlowConstructor opts c
+                tagProperty constr
                     = (T.pack tag,)
                     . Fix . L1 . Literal . LitString
                     . constrMod
-                    $ getConstructorName x
+                    $ getConstructorName constr
 
-        UntaggedValue             -> encodeFlowConstructor c
+        UntaggedValue             -> encodeFlowConstructor opts c
         ObjectWithSingleField     -> Fix . L1 $ ExactObject
-            [(constrMod $ getConstructorName c, encodeFlowConstructor c)]
+            [(constrMod $ getConstructorName c, encodeFlowConstructor opts c)]
         TwoElemArray              -> Fix . L1 $ Array primAny
 
     where
         constrMod = T.pack . constructorTagModifier opts . T.unpack
 
 
-
---encodeFlowConstructor :: ProperConstructor -> Options -> FlowTypeInfo
-encodeFlowConstructor :: ProperConstructor -> FlowTypeInfo
-encodeFlowConstructor = undefined
+encodeFlowConstructor :: Options -> ProperConstructor -> FlowTypeInfo
+encodeFlowConstructor opts = \case
+    RecordConstructor _str [(_,ty)]
+        | unwrapUnaryRecords opts  -> ty
+    RecordConstructor _str tyPairs -> Fix . L1 . ExactObject $
+        first (T.pack . fieldLabelModifier opts) <$> tyPairs
+    AnonConstructor _str _fTypes   -> Fix . L1 . Array $ primAny

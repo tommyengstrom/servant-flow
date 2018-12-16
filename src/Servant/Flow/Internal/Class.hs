@@ -17,6 +17,7 @@ import           Data.Proxy
 import           Data.Set                   (Set)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
+import qualified Data.Text.Lazy             as TL
 import           Data.Time                  (Day, LocalTime, UTCTime)
 import           GHC.Generics
 import           Servant.API                (NoContent)
@@ -57,6 +58,9 @@ instance Flow Bool where
     flowTypeInfo _ = primBoolean
 
 instance Flow Text where
+    flowTypeInfo _ = primString
+
+instance Flow TL.Text where
     flowTypeInfo _ = primString
 
 instance Flow UTCTime where

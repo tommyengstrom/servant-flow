@@ -173,26 +173,19 @@ instance Show FieldInfo where
         , T.unpack (renderType Referenced fTy)
         ]
 
+
 data FlowConstructor = FlowConstructor Text [FieldInfo]
 
 
--- Constructor helper class
-class GFlowField f where
-    flowField :: f x -> FieldInfo
-
-instance (Flow a, Selector s) => GFlowField (S1 s (K1 R a)) where
-    flowField _ =
+instance (Flow a, Selector s) => GFlowConstructorFields (S1 s (K1 R a)) where
+    constructorFields _ = pure $
         RecordField
             (selName (undefined :: S1 s (K1 R a) ()))
-            $ flowTypeInfo (Proxy @a)
+            (flowTypeInfo (Proxy @a))
 
 class GFlowConstructorFields f where
     constructorFields :: f x -> [FieldInfo]
 
--- Rather than using UndecidableInstances here, maybe just define the instance directly
--- in terms of S1.
-instance GFlowField f => GFlowConstructorFields f where
-    constructorFields _ = pure @[] $ flowField (undefined :: f ())
 
 instance (GFlowConstructorFields f, GFlowConstructorFields g)
     => GFlowConstructorFields (f :*: g) where

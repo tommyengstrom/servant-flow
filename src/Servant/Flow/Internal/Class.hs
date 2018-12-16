@@ -254,12 +254,12 @@ mkProperConstructor (FlowConstructor name fs) = maybe (Left $ Unexpected fs) Rig
 
 
 
-encodeFlowUnion :: FlowDatatype -> Options -> FlowTypeInfo
-encodeFlowUnion (FlowDatatype [c]) opts
+encodeFlowUnion :: Options -> FlowDatatype -> FlowTypeInfo
+encodeFlowUnion opts (FlowDatatype [c])
     | not (tagSingleConstructors opts) = encodeFlowConstructor opts c
     -- Not "Encode types with a single constructor as sums, so that
     -- allNullaryToStringTag and sumEncoding apply."
-encodeFlowUnion (FlowDatatype cs) opts = Fix . L1 . Sum $ cs <&> \c -> if
+encodeFlowUnion opts (FlowDatatype cs) = Fix . L1 . Sum $ cs <&> \c -> if
     | all nullary cs && allNullaryToStringTag opts -> Fix . L1 . Literal . LitString $ constrName c
     | otherwise                                    -> case sumEncoding opts of
         TaggedObject tag contents -> Fix . L1 . ExactObject $

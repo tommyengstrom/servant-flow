@@ -241,28 +241,28 @@ encodeFlowUnion (FlowDatatype [c]) opts
     | not (tagSingleConstructors opts) = encodeFlowConstructor opts c
     -- Not "Encode types with a single constructor as sums, so that
     -- allNullaryToStringTag and sumEncoding apply."
-encodeFlowUnion (FlowDatatype cs) opts
-    | all nullary cs && allNullaryToStringTag opts = Fix . L1 . Sum $ Fix . L1 . Literal . LitString . getConstructorName <$> cs
-    | otherwise                                    = Fix . L1 . Sum $ cs <&> \c -> case sumEncoding opts of
-            TaggedObject tag contents -> Fix . L1 . ExactObject $
-                case summandType of
-                    (Fix (L1 (ExactObject l))) -> tagProperty c : l
-                    _                          ->
-                        [ tagProperty c
-                        , (T.pack contents, summandType)
-                        ]
-                where
-                    summandType = encodeFlowConstructor opts c
-                    tagProperty constr
-                        = (T.pack tag,)
-                        . Fix . L1 . Literal . LitString
-                        . constrMod
-                        $ getConstructorName constr
+encodeFlowUnion (FlowDatatype cs) opts = Fix . L1 . Sum $ cs <&> \c -> if
+    | all nullary cs && allNullaryToStringTag opts -> Fix . L1 . Literal . LitString $ getConstructorName c
+    | otherwise                                    -> case sumEncoding opts of
+        TaggedObject tag contents -> Fix . L1 . ExactObject $
+            case summandType of
+                (Fix (L1 (ExactObject l))) -> tagProperty c : l
+                _                          ->
+                    [ tagProperty c
+                    , (T.pack contents, summandType)
+                    ]
+            where
+                summandType = encodeFlowConstructor opts c
+                tagProperty constr
+                    = (T.pack tag,)
+                    . Fix . L1 . Literal . LitString
+                    . constrMod
+                    $ getConstructorName constr
 
-            UntaggedValue             -> encodeFlowConstructor opts c
-            ObjectWithSingleField     -> Fix . L1 $ ExactObject
-                [(constrMod $ getConstructorName c, encodeFlowConstructor opts c)]
-            TwoElemArray              -> Fix . L1 $ Array primAny
+        UntaggedValue             -> encodeFlowConstructor opts c
+        ObjectWithSingleField     -> Fix . L1 $ ExactObject
+            [(constrMod $ getConstructorName c, encodeFlowConstructor opts c)]
+        TwoElemArray              -> Fix . L1 $ Array primAny
 
     where
         constrMod = T.pack . constructorTagModifier opts . T.unpack

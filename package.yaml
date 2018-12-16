@@ -47,6 +47,7 @@ default-extensions:
 - FlexibleInstances
 - LambdaCase
 - MultiParamTypeClasses
+- MultiWayIf
 - OverloadedStrings
 - ScopedTypeVariables
 - TypeApplications

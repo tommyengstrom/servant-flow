@@ -114,7 +114,7 @@ data FieldInfo
     = AnonField FlowTypeInfo
     | RecordField String FlowTypeInfo
 
-data FlowConstructor = FlowConstructor Text [FieldInfo]
+data RawConstructor = RawConstructor Text [FieldInfo]
 
 data FieldError
     = Unexpected [FieldInfo]
@@ -162,12 +162,12 @@ instance (GFlowConstructorFields f, GFlowConstructorFields g)
             <> constructorFields (undefined :: g ())
 
 class GFlowConstructors f where
-    constructors :: f x -> [FlowConstructor]
+    constructors :: f x -> [RawConstructor]
 
 instance (GFlowConstructorFields f, Constructor m) => GFlowConstructors (C1 m f) where
     constructors _
         = pure
-        . FlowConstructor (T.pack $ conName @m undefined)
+        . RawConstructor (T.pack $ conName @m undefined)
         $ constructorFields (undefined :: f ())
 
 instance (GFlowConstructors f, GFlowConstructors g) => GFlowConstructors (f :+: g) where
@@ -182,8 +182,8 @@ instance GFlowConstructors f => GFlow (D1 m f) where
         $ traverse mkProperConstructor (constructors $ (undefined :: f ()))
 
 
-mkProperConstructor :: FlowConstructor -> Either FieldError ProperConstructor
-mkProperConstructor (FlowConstructor name fs) = maybe (Left $ Unexpected fs) Right $
+mkProperConstructor :: RawConstructor -> Either FieldError ProperConstructor
+mkProperConstructor (RawConstructor name fs) = maybe (Left $ Unexpected fs) Right $
         fmap (RecordConstructor name) (traverse requireRecordField fs)
     <|> fmap (AnonConstructor   name) (traverse requireAnonField fs)
 

@@ -186,6 +186,8 @@ instance (Flow a, Selector s) => GFlowConstructorFields (S1 s (K1 R a)) where
 class GFlowConstructorFields f where
     constructorFields :: f x -> [FieldInfo]
 
+instance GFlowConstructorFields U1 where
+    constructorFields _ = []
 
 instance (GFlowConstructorFields f, GFlowConstructorFields g)
     => GFlowConstructorFields (f :*: g) where

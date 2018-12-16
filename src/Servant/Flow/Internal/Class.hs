@@ -15,7 +15,6 @@ import           Data.Map                   (Map)
 import           Data.Monoid                ((<>))
 import           Data.Proxy
 import           Data.Set                   (Set)
-import           Data.String
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import           Data.Time                  (Day, LocalTime, UTCTime)
@@ -39,7 +38,6 @@ class Flow a where
 genericFlowType :: forall a. (Generic a, GFlow (Rep a))
                 => Options -> Proxy a -> FlowTypeInfo
 genericFlowType opts _ = gFlowType opts (from (undefined :: a))
-
 
 
 -- Primative instances
@@ -107,56 +105,6 @@ instance FlowObjectKey Text
 class GFlow f where
     gFlowType :: Options -> f x -> FlowTypeInfo
 
--- Single-constructor records
-instance {-# OVERLAPPABLE #-} (GFlowRecordFields f, Datatype m1) => GFlow (D1 m1 (C1 m2 f)) where
-    gFlowType opts _
-        = named (T.pack $ datatypeName (undefined :: D1 m1 (C1 m2 f) ()))
-        . Fix . L1 . ExactObject
-        . fmap (first $ fromString . fieldLabelModifier opts)
-        $ recordFields (undefined :: f ())
-
--- Simple sum types
-instance {-# OVERLAPPABLE #-} (GSimpleSum cs, Datatype m) => GFlow (D1 m cs) where
-    gFlowType opts _
-        = named (T.pack $ datatypeName (undefined :: D1 m cs ()))
-        . Fix . L1 . Sum . fmap (Fix . L1 . Literal . LitString)
-        $ simpleSumOptions opts (undefined :: cs ())
-
--- Use an instance that already exists
-instance Flow a => GFlow (K1 i a) where
-    gFlowType _ _ = flowTypeInfo (Proxy @a)
-
--- Record product type helper class
-class GFlowRecordFields f where
-    recordFields :: f x -> [(String, FlowTypeInfo)]
-
-instance (Flow a, Selector s) => GFlowRecordFields (S1 s (K1 R a)) where
-    recordFields _ =
-        [(selName (undefined :: S1 s (K1 R a) ()) , flowTypeInfo (Proxy @a))]
-
-instance (GFlowRecordFields f, GFlowRecordFields g) => GFlowRecordFields (f :*: g) where
-    recordFields _ = recordFields (undefined :: f ()) <> recordFields (undefined :: g ())
-
-
--- Simple sum type helper class
-class GSimpleSum f where
-    simpleSumOptions :: Options -> f x -> [Text]
-
-instance Constructor meta => GSimpleSum (C1 meta U1) where
-    simpleSumOptions opts _
-        = pure
-        . fromString
-        . constructorTagModifier opts
-        $ conName (undefined :: C1 meta U1 ())
-
-instance (GSimpleSum f, GSimpleSum g) => GSimpleSum (f :+: g) where
-    simpleSumOptions opts _ =
-        simpleSumOptions opts (undefined :: f ()) <>
-        simpleSumOptions opts (undefined :: g ())
-
-
-
-
 
 data FieldInfo
     = AnonField FlowTypeInfo
@@ -176,7 +124,7 @@ instance Show FieldInfo where
 
 data FlowConstructor = FlowConstructor Text [FieldInfo]
 
-
+-- Use an instance that already exists
 instance (Flow a, Selector s) => GFlowConstructorFields (S1 s (K1 R a)) where
     constructorFields _ = pure $
         RecordField
@@ -225,12 +173,11 @@ data FlowDatatype = FlowDatatype [ProperConstructor]
 
 
 
-class GFlowDatatype f where
-    gFlowDatatype :: f x -> FlowDatatype
-
-instance GFlowConstructors f => GFlowDatatype (D1 m f) where
-    gFlowDatatype _ = either (\er -> error (show er)) FlowDatatype $
-        traverse mkProperConstructor (constructors $ (undefined :: f ()))
+instance GFlowConstructors f => GFlow (D1 m f) where
+    gFlowType opts _
+        = encodeFlowUnion opts
+        . either (\er -> error (show er)) FlowDatatype
+        $ traverse mkProperConstructor (constructors $ (undefined :: f ()))
 
 
 mkProperConstructor :: FlowConstructor -> Either FieldError ProperConstructor

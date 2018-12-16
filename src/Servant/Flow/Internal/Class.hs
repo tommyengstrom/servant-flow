@@ -121,11 +121,11 @@ data FieldError
     deriving Show
 
 
-data ProperConstructor
+data DataConstructor
     = AnonConstructor Text [FlowTypeInfo]
     | RecordConstructor Text [(String, FlowTypeInfo)]
 
-data FlowDatatype = FlowDatatype [ProperConstructor]
+data DatatypeInfo = DatatypeInfo [DataConstructor]
 
 
 instance Show FieldInfo where
@@ -178,12 +178,12 @@ instance (GFlowConstructors f, GFlowConstructors g) => GFlowConstructors (f :+: 
 instance GFlowConstructors f => GFlow (D1 m f) where
     gFlowType opts _
         = encodeFlowUnion opts
-        . either (\er -> error (show er)) FlowDatatype
-        $ traverse mkProperConstructor (constructors $ (undefined :: f ()))
+        . either (\er -> error (show er)) DatatypeInfo
+        $ traverse mkDataConstructor (constructors $ (undefined :: f ()))
 
 
-mkProperConstructor :: RawConstructor -> Either FieldError ProperConstructor
-mkProperConstructor (RawConstructor name fs) = maybe (Left $ Unexpected fs) Right $
+mkDataConstructor :: RawConstructor -> Either FieldError DataConstructor
+mkDataConstructor (RawConstructor name fs) = maybe (Left $ Unexpected fs) Right $
         fmap (RecordConstructor name) (traverse requireRecordField fs)
     <|> fmap (AnonConstructor   name) (traverse requireAnonField fs)
 
@@ -198,12 +198,12 @@ mkProperConstructor (RawConstructor name fs) = maybe (Left $ Unexpected fs) Righ
 
 
 
-encodeFlowUnion :: Options -> FlowDatatype -> FlowTypeInfo
-encodeFlowUnion opts (FlowDatatype [c])
+encodeFlowUnion :: Options -> DatatypeInfo -> FlowTypeInfo
+encodeFlowUnion opts (DatatypeInfo [c])
     | not (tagSingleConstructors opts) = encodeFlowConstructor opts c
     -- Not "Encode types with a single constructor as sums, so that
     -- allNullaryToStringTag and sumEncoding apply."
-encodeFlowUnion opts (FlowDatatype cs) = Fix . L1 . Sum $ cs <&> \c -> if
+encodeFlowUnion opts (DatatypeInfo cs) = Fix . L1 . Sum $ cs <&> \c -> if
     | all nullary cs && allNullaryToStringTag opts -> Fix . L1 . Literal . LitString $ constrName c
     | otherwise                                    -> case sumEncoding opts of
         TaggedObject tag contents -> Fix . L1 . ExactObject $
@@ -236,7 +236,7 @@ encodeFlowUnion opts (FlowDatatype cs) = Fix . L1 . Sum $ cs <&> \c -> if
         nullary _                        = False
 
 -- | Flow representation of a particular data constructor
-encodeFlowConstructor :: Options -> ProperConstructor -> FlowTypeInfo
+encodeFlowConstructor :: Options -> DataConstructor -> FlowTypeInfo
 encodeFlowConstructor opts = \case
     RecordConstructor _str [(_,ty)]
         | unwrapUnaryRecords opts  -> ty

@@ -177,7 +177,7 @@ instance (GFlowConstructors f, GFlowConstructors g) => GFlowConstructors (f :+: 
 
 instance GFlowConstructors f => GFlow (D1 m f) where
     gFlowType opts _
-        = encodeFlowUnion opts
+        = encodeDatatype opts
         . either (\er -> error (show er)) DatatypeInfo
         $ traverse mkDataConstructor (constructors $ (undefined :: f ()))
 
@@ -198,12 +198,12 @@ mkDataConstructor (RawConstructor name fs) = maybe (Left $ Unexpected fs) Right 
 
 
 
-encodeFlowUnion :: Options -> DatatypeInfo -> FlowTypeInfo
-encodeFlowUnion opts (DatatypeInfo [c])
+encodeDatatype :: Options -> DatatypeInfo -> FlowTypeInfo
+encodeDatatype opts (DatatypeInfo [c])
     | not (tagSingleConstructors opts) = encodeFlowConstructor opts c
     -- Not "Encode types with a single constructor as sums, so that
     -- allNullaryToStringTag and sumEncoding apply."
-encodeFlowUnion opts (DatatypeInfo cs) = Fix . L1 . Sum $ cs <&> \c -> if
+encodeDatatype opts (DatatypeInfo cs) = Fix . L1 . Sum $ cs <&> \c -> if
     | all nullary cs && allNullaryToStringTag opts -> Fix . L1 . Literal . LitString $ constrName c
     | otherwise                                    -> case sumEncoding opts of
         TaggedObject tag contents -> Fix . L1 . ExactObject $

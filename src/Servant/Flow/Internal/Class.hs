@@ -139,10 +139,11 @@ instance Show FieldInfo where
 
 -- Use an instance that already exists
 instance (Flow a, Selector s) => GFlowConstructorFields (S1 s (K1 R a)) where
-    constructorFields _ = pure $
-        RecordField
-            (selName (undefined :: S1 s (K1 R a) ()))
-            (flowTypeInfo (Proxy @a))
+    constructorFields _ = pure $ if
+        | null s    -> AnonField     $ flowTypeInfo (Proxy @a)
+        | otherwise -> RecordField s $ flowTypeInfo (Proxy @a)
+        where
+            s = selName (undefined :: S1 s (K1 R a) ())
 
 class GFlowConstructorFields f where
     constructorFields :: f x -> [FieldInfo]

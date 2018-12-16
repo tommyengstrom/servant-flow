@@ -3,8 +3,11 @@
 
 module Servant.Flow.Internal.Class where
 
-import           Data.Aeson                 (Options (..), defaultOptions, SumEncoding (..))
+import           Control.Applicative        ((<|>))
+import           Data.Aeson                 (Options (..), SumEncoding (..),
+                                             defaultOptions)
 import           Data.Bifunctor             (first)
+import           Data.Functor
 import           Data.Functor.Foldable
 import           Data.Int                   (Int64)
 import           Data.List.NonEmpty         (NonEmpty (..))
@@ -19,7 +22,7 @@ import           Data.Time                  (Day, LocalTime, UTCTime)
 import           GHC.Generics
 import           Servant.API                (NoContent)
 import           Servant.Flow.Internal.Core
-import Data.Functor
+
 
 ------------------------------------------------------------------------------------------
 --  Classes
@@ -139,7 +142,7 @@ instance (GFlowRecordFields f, GFlowRecordFields g) => GFlowRecordFields (f :*: 
 class GSimpleSum f where
     simpleSumOptions :: Options -> f x -> [Text]
 
-instance Constructor meta => GSimpleSum (M1 C meta U1) where
+instance Constructor meta => GSimpleSum (C1 meta U1) where
     simpleSumOptions opts _
         = pure
         . fromString
@@ -170,7 +173,7 @@ instance Show FieldInfo where
         , T.unpack (renderType Referenced fTy)
         ]
 
-data FlowConstructor = FlowConstructor [FieldInfo]
+data FlowConstructor = FlowConstructor Text [FieldInfo]
 
 
 -- Constructor helper class
@@ -197,13 +200,16 @@ instance (GFlowConstructorFields f, GFlowConstructorFields g)
                constructorFields (undefined :: f ())
             <> constructorFields (undefined :: g ())
 
-class GFlowConstructor f where
+class GFlowConstructors f where
     constructors :: f x -> [FlowConstructor]
 
-instance GFlowConstructorFields f => GFlowConstructor (C1 m f) where
-    constructors _ = [FlowConstructor $ constructorFields (undefined :: f ()) ]
+instance (GFlowConstructorFields f, Constructor m) => GFlowConstructors (C1 m f) where
+    constructors _
+        = pure
+        . FlowConstructor (T.pack $ conName @m undefined)
+        $ constructorFields (undefined :: f ())
 
-instance (GFlowConstructor f, GFlowConstructor g) => GFlowConstructor (f :+: g) where
+instance (GFlowConstructors f, GFlowConstructors g) => GFlowConstructors (f :+: g) where
     constructors _ = constructors (undefined :: f ())
                   <> constructors (undefined :: g ())
 
@@ -227,12 +233,24 @@ data FlowDatatype = FlowDatatype [ProperConstructor]
 class GFlowDatatype f where
     gFlowDatatype :: f x -> FlowDatatype
 
-instance GFlowConstructor f => GFlowDatatype (D1 m f) where
+instance GFlowConstructors f => GFlowDatatype (D1 m f) where
     gFlowDatatype _ = either (\er -> error (show er)) FlowDatatype $
         traverse mkProperConstructor (constructors $ (undefined :: f ()))
 
+
 mkProperConstructor :: FlowConstructor -> Either FieldError ProperConstructor
-mkProperConstructor = undefined
+mkProperConstructor (FlowConstructor name fs) = maybe (Left $ Unexpected fs) Right $
+        fmap (RecordConstructor name) (traverse requireRecordField fs)
+    <|> fmap (AnonConstructor   name) (traverse requireAnonField fs)
+
+    where
+        requireAnonField :: FieldInfo -> Maybe FlowTypeInfo
+        requireAnonField (AnonField ty) = Just ty
+        requireAnonField _              = Nothing
+
+        requireRecordField :: FieldInfo -> Maybe (String, FlowTypeInfo)
+        requireRecordField (RecordField f ty) = Just (f, ty)
+        requireRecordField _                  = Nothing
 
 
 

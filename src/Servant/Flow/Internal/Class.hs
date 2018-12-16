@@ -110,6 +110,20 @@ data FieldInfo
     = AnonField FlowTypeInfo
     | RecordField String FlowTypeInfo
 
+data FlowConstructor = FlowConstructor Text [FieldInfo]
+
+data FieldError
+    = Unexpected [FieldInfo]
+    deriving Show
+
+
+data ProperConstructor
+    = AnonConstructor Text [FlowTypeInfo]
+    | RecordConstructor Text [(String, FlowTypeInfo)]
+
+data FlowDatatype = FlowDatatype [ProperConstructor]
+
+
 instance Show FieldInfo where
     show (AnonField fTy)             = unwords
         [ "AnonField"
@@ -122,7 +136,6 @@ instance Show FieldInfo where
         ]
 
 
-data FlowConstructor = FlowConstructor Text [FieldInfo]
 
 -- Use an instance that already exists
 instance (Flow a, Selector s) => GFlowConstructorFields (S1 s (K1 R a)) where
@@ -155,22 +168,6 @@ instance (GFlowConstructorFields f, Constructor m) => GFlowConstructors (C1 m f)
 instance (GFlowConstructors f, GFlowConstructors g) => GFlowConstructors (f :+: g) where
     constructors _ = constructors (undefined :: f ())
                   <> constructors (undefined :: g ())
-
-
-data FieldError
-    = Unexpected [FieldInfo]
-    deriving Show
-
-data ProperConstructor
-    = AnonConstructor Text [FlowTypeInfo]
-    | RecordConstructor Text [(String, FlowTypeInfo)]
-
-getConstructorName :: ProperConstructor -> Text
-getConstructorName (AnonConstructor   constName _) = constName
-getConstructorName (RecordConstructor constName _) = constName
-
-data FlowDatatype = FlowDatatype [ProperConstructor]
-
 
 
 instance GFlowConstructors f => GFlow (D1 m f) where
@@ -225,6 +222,9 @@ encodeFlowUnion opts (FlowDatatype cs) = Fix . L1 . Sum $ cs <&> \c -> if
 
     where
         constrName = T.pack . constructorTagModifier opts . T.unpack . getConstructorName
+
+        getConstructorName (AnonConstructor   constName _) = constName
+        getConstructorName (RecordConstructor constName _) = constName
 
         nullary (AnonConstructor _ [])   = True
         nullary (RecordConstructor _ []) = True

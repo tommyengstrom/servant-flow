@@ -231,10 +231,10 @@ instance GFlowConstructor f => GFlowDatatype (D1 m f) where
     gFlowDatatype _ = either (\er -> error (show er)) FlowDatatype $
         traverse mkProperConstructor (constructors $ (undefined :: f ()))
 
-
-
 mkProperConstructor :: FlowConstructor -> Either FieldError ProperConstructor
 mkProperConstructor = undefined
+
+
 
 encodeFlowUnion :: FlowDatatype -> Options -> FlowTypeInfo
 encodeFlowUnion (FlowDatatype [c]) opts
@@ -242,7 +242,7 @@ encodeFlowUnion (FlowDatatype [c]) opts
     -- Not "Encode types with a single constructor as sums, so that
     -- allNullaryToStringTag and sumEncoding apply."
 encodeFlowUnion (FlowDatatype cs) opts = Fix . L1 . Sum $ cs <&> \c -> if
-    | all nullary cs && allNullaryToStringTag opts -> Fix . L1 . Literal . LitString $ getConstructorName c
+    | all nullary cs && allNullaryToStringTag opts -> Fix . L1 . Literal . LitString $ constrName c
     | otherwise                                    -> case sumEncoding opts of
         TaggedObject tag contents -> Fix . L1 . ExactObject $
             case summandType of
@@ -256,22 +256,21 @@ encodeFlowUnion (FlowDatatype cs) opts = Fix . L1 . Sum $ cs <&> \c -> if
                 tagProperty constr
                     = (T.pack tag,)
                     . Fix . L1 . Literal . LitString
-                    . constrMod
-                    $ getConstructorName constr
+                    $ constrName constr
 
         UntaggedValue             -> encodeFlowConstructor opts c
         ObjectWithSingleField     -> Fix . L1 $ ExactObject
-            [(constrMod $ getConstructorName c, encodeFlowConstructor opts c)]
+            [(constrName c, encodeFlowConstructor opts c)]
         TwoElemArray              -> Fix . L1 $ Array primAny
 
     where
-        constrMod = T.pack . constructorTagModifier opts . T.unpack
+        constrName = T.pack . constructorTagModifier opts . T.unpack . getConstructorName
 
         nullary (AnonConstructor _ [])   = True
         nullary (RecordConstructor _ []) = True
         nullary _                        = False
 
-
+-- | Flow representation of a particular data constructor
 encodeFlowConstructor :: Options -> ProperConstructor -> FlowTypeInfo
 encodeFlowConstructor opts = \case
     RecordConstructor _str [(_,ty)]

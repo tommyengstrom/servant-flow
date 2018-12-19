@@ -1,6 +1,3 @@
-{-# LANGUAGE StrictData           #-}
-{-# LANGUAGE UndecidableInstances #-}
-
 module Servant.Flow.Internal.Class where
 
 import           Control.Applicative        ((<|>))

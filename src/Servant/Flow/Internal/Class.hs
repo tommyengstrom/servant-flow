@@ -235,6 +235,7 @@ encodeDatatype opts (DatatypeInfo cs) = Fix . L1 . Sum $ cs <&> \c -> if
 -- | Flow representation of a particular data constructor
 encodeFlowConstructor :: Options -> DataConstructor -> FlowTypeInfo
 encodeFlowConstructor opts = \case
+    RecordConstructor _str []      -> Fix . L1 . Array $ primAny
     RecordConstructor _str [(_,ty)]
         | unwrapUnaryRecords opts  -> ty
     RecordConstructor _str tyPairs -> Fix . L1 . ExactObject $

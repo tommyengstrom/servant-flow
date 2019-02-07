@@ -3,6 +3,7 @@ module Servant.Flow
 
     ( -- ** Classes and basic types
       FlowType
+    , FlowTypeInfo
     , Flow (..)
     , genericFlowType
     , renderFlowType

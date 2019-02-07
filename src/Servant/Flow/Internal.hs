@@ -52,8 +52,9 @@ data PrimType
     deriving (Show, Eq)
 
 -- | Literal value types
-newtype Lit
+data Lit
     = LitString Text
+    | LitNull
     deriving (Show, Eq)
 
 -- | Object field types
@@ -297,6 +298,7 @@ renderType Referenced = renderFlowTypeWithReferences . toReferenced
 
 showLiteral :: Lit -> Text
 showLiteral (LitString txt) = fromString $ show txt
+showLiteral LitNull         = "null"
 
 inParens :: Text -> Text
 inParens t = "(" <> t <> ")"

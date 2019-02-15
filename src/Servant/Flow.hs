@@ -1,6 +1,4 @@
 module Servant.Flow
-
-
     ( -- ** Classes and basic types
       FlowType
     , FlowTypeInfo
@@ -29,6 +27,7 @@ module Servant.Flow
     , defaultOptions
     , SumEncoding (..)
     , defaultTaggedObject
+    , showFlowType
 
     -- ** Servant HasForeign
     , LangFlow
@@ -72,3 +71,6 @@ generateTypeDefinitions apiProxy opts
 
 generateClientFunction :: CodeGenOptions -> Text
 generateClientFunction opts = execCodeGen opts renderClientFunction
+
+showFlowType :: Flow a => Proxy a -> Text
+showFlowType = renderType Referenced . flowTypeInfo

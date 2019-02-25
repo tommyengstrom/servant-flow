@@ -1,13 +1,16 @@
 #! /usr/bin/env bash
 
+set -e
 cd integration-test
-stack clean
-stack build --fast
-stack exec code-generator -- js/api.js
-stack exec server &
+stack --no-terminal clean
+stack --no-terminal build --fast
+stack --no-terminal exec code-generator -- js/api.js
+stack --no-terminal exec server &
 pid=$!
 cd js
 npm install
+# npm install flow-typed
+./node_modules/.bin/flow-typed update
+npm run flow
 npm test
 kill $pid
-

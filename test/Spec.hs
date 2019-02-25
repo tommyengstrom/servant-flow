@@ -1,13 +1,14 @@
-import Servant.Flow
-import Servant.Flow.CodeGen
-import Servant
-import Test.Hspec
-import Data.Text (Text)
-import qualified Data.Text as T
-import GHC.Generics (Generic)
+import           Data.Aeson   (FromJSON, ToJSON)
+import           Data.Text    (Text)
+import qualified Data.Text    as T
+import           GHC.Generics (Generic)
+import           Servant
+import           Servant.Flow
+import           Test.Hspec
+
 
 data Transformation = ToUpper | ToLower
-    deriving (Show, Generic)
+    deriving (Show, Generic, ToJSON, FromJSON, Flow)
 
 type API = "changeCase"
         :> Capture "transformation" Transformation
@@ -17,11 +18,9 @@ type API = "changeCase"
     :<|> "user" :> ReqBody '[JSON] Text :> Post '[JSON] Text
 
 
-
 main :: IO ()
-main = hspec $ do
-    describe "Generate API client" $ do
+main = hspec .
+    describe "Generate API client" .
         it "Outputs something" $ do
             putStrLn . T.unpack $ T.replicate 80 "-"
-            putStrLn . T.unpack $ runCodeGen renderClientFunction defaultOptions
-            putStrLn . T.unpack $ generateFlowClient (Proxy @API) defaultOptions
+            putStrLn . T.unpack $ generateFlowClient (Proxy @API) defaultCodeGenOptions

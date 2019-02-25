@@ -1,11 +1,10 @@
 module Main where
 
 import           Data.Proxy
-import qualified Data.Text.IO as T
+import qualified Data.Text.IO       as T
 import           Servant.Flow
+import           System.Environment (getArgs)
 import           TestAPI
-import Data.Monoid
-import System.Environment (getArgs)
 
 main :: IO ()
 main = do
@@ -13,8 +12,5 @@ main = do
     path <- case args of
         [p] -> pure p
         _   -> error "Must be called with output path"
-    let clientCode = generateClientFunction defaultOptions
-                  <> "\n\n"
-                  <> generateFlowClient (Proxy @API) defaultOptions
+    let clientCode = generateFlowClient (Proxy @API) defaultCodeGenOptions
     T.writeFile path clientCode
-

@@ -2,7 +2,7 @@ name:                servant-flow
 version:             0.1.0.0
 github:              "henrylabs/servant-flow"
 license:             BSD3
-author:              "Tommy Engström"
+author:              "Tommy Engström, Cliff Harvey"
 maintainer:          "tommy@hihenry.com"
 copyright:           "2018 Henry Labs"
 
@@ -17,12 +17,13 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/tommyengstrom/servant-flow#readme>
+description:         Please see the README on GitHub at <https://github.com/henrylabs/servant-flow#readme>
 
 dependencies:
 - aeson
 - base >= 4.7 && < 5
 - containers
+- unordered-containers
 - lens
 - servant
 - servant-foreign
@@ -32,18 +33,24 @@ dependencies:
 - mtl
 - transformers
 - http-types
+- recursion-schemes
 
 default-extensions:
+- DataKinds
+- DefaultSignatures
+- DeriveAnyClass
+- DeriveFoldable
+- DeriveFunctor
+- DeriveGeneric
+- DeriveTraversable
 - FlexibleContexts
 - FlexibleInstances
+- LambdaCase
 - MultiParamTypeClasses
 - OverloadedStrings
 - ScopedTypeVariables
 - TypeApplications
-- TypeSynonymInstances
 - TypeOperators
-- DataKinds
-- DeriveGeneric
 
 ghc-options:
 - -Wall -Werror

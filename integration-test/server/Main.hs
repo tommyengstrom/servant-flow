@@ -1,27 +1,33 @@
 module Main where
 
-import           Data.Text (Text)
-import qualified Data.Text as T
+import           Data.Maybe
+import           Network.Wai.Handler.Warp
+import           Network.Wai.Middleware.Cors
+import           Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import           Servant
 import           TestAPI
-import Network.Wai.Handler.Warp
-import Network.Wai.Middleware.RequestLogger (logStdoutDev)
-import Network.Wai.Middleware.Cors
+
 
 server :: Server API
-server = changeCase
-    :<|> user
+server = captureServer
+    :<|> queryParamServer
+    :<|> reqBodyServer
 
-changeCase :: Transformation -> Maybe Int -> Bool -> Handler Text
-changeCase a b c = pure . T.pack $ show (a, b, c)
+captureServer :: Server CaptureAPI
+captureServer = pure :<|> pure :<|> pure :<|> pure
 
-user :: Text -> Handler Text
-user _ = pure "like a glove!"
+queryParamServer :: Server QueryParamAPI
+queryParamServer = pure . fromMaybe 42
+              :<|> pure . mconcat
+              :<|> pure
+              :<|> pure . fromMaybe ToUpper
+
+reqBodyServer :: Server ReqBodyAPI
+reqBodyServer = pure :<|> pure :<|> pure :<|> pure :<|> pure :<|> pure
 
 
 app :: Application
 app = serve (Proxy @API) server
 
 main :: IO ()
-main = run 8080 . simpleCors $ logStdoutDev app
-
+main = run 8284 . simpleCors $ logStdoutDev app

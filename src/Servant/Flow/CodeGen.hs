@@ -1,21 +1,21 @@
 module Servant.Flow.CodeGen where
 
-import           Control.Lens          hiding (List, para)
-import           Control.Monad.Reader
-import           Control.Monad.RWS     hiding (Any, Sum)
-import           Data.Function         (on)
-import           Data.Functor          ((<&>))
+import           Control.Lens            hiding ( List
+                                                , para
+                                                )
+import           Control.Monad.RWS       hiding ( Any
+                                                , Sum
+                                                )
+import           Data.Function                  ( on )
 import           Data.Functor.Foldable
 import           Data.List
 import           Data.Maybe
-import           Data.Monoid           ((<>))
-import           Data.Text             (Text)
-import qualified Data.Text             as T
-import           Data.Text.Encoding    (decodeUtf8)
+import           Data.Text                      ( Text )
+import qualified Data.Text                                    as T
+import           Data.Text.Encoding             ( decodeUtf8 )
 import           GHC.Generics
 import           Servant.Flow.Internal
 import           Servant.Foreign
-
 
 type Indent = Int
 
@@ -29,24 +29,27 @@ execCodeGen opts g = view _3 $ runCodeGen' g opts
 
 -- | Options for how to generate the API client
 data CodeGenOptions = CodeGenOptions
-    { cgRenderFunctionName    :: FunctionName -> Text -- ^ Name of endpoint function
-    , cgIndentSize            :: Int  -- ^ number of spaces to indent by
-    , cgActivateFlow          :: Bool -- ^ Include annotation to activate type checking
-    , cgIncludeClientFunction :: Bool -- ^ Include function to create the Axios client
-    }
+  { -- | Name of endpoint function
+    cgRenderFunctionName :: FunctionName -> Text,
+    -- | number of spaces to indent by
+    cgIndentSize :: Int,
+    -- | Include annotation to activate type checking
+    cgActivateFlow :: Bool,
+    -- | Include function to create the Axios client
+    cgIncludeClientFunction :: Bool
+  }
 
 defaultCodeGenOptions :: CodeGenOptions
-defaultCodeGenOptions = CodeGenOptions
-    { cgRenderFunctionName    = camelCase
-    , cgIndentSize            = 4
-    , cgActivateFlow          = True
-    , cgIncludeClientFunction = True
-    }
+defaultCodeGenOptions = CodeGenOptions { cgRenderFunctionName    = camelCase
+                                       , cgIndentSize            = 4
+                                       , cgActivateFlow          = True
+                                       , cgIncludeClientFunction = True
+                                       }
 
 -- | Print indented
 indent :: Text -> CodeGen ()
 indent t = do
-    indentSize <- asks cgIndentSize
+    indentSize  <- asks cgIndentSize
     indentLevel <- get
     tell $ T.replicate (indentSize * indentLevel) " " <> t
 
@@ -79,18 +82,16 @@ blockWith open close cg = do
     indented $ cg <* line close
 
 indentMore :: CodeGen ()
-indentMore = modify (+1)
+indentMore = modify (+ 1)
 
 indentLess :: CodeGen ()
 indentLess = modify $ max 0 . subtract 1
-
 
 renderFlowTypeInComment :: Rendering -> FlowTypeInfo -> Text
 renderFlowTypeInComment r ty = "/* : " <> renderType r ty <> " */"
 
 renderFlowTypeOneLine :: Rendering -> FlowTypeInfo -> Text
 renderFlowTypeOneLine r = T.replace "\n" " " . renderType r
-
 
 renderArgNoComment :: Rendering -> Arg FlowTypeInfo -> Text
 renderArgNoComment r (Arg (PathSegment name) t) =
@@ -99,22 +100,21 @@ renderArgNoComment r (Arg (PathSegment name) t) =
 renderArg :: Rendering -> Arg FlowTypeInfo -> Text
 renderArg r (Arg (PathSegment name) t) = name <> " " <> renderFlowTypeInComment r t
 
-
 getCaptureArgs :: Req a -> [Arg a]
 getCaptureArgs req = mapMaybe getArg $ req ^. reqUrl . path
-    where
-        getArg :: Segment a -> Maybe (Arg a)
-        getArg (Segment (Static _ )) = Nothing
-        getArg (Segment (Cap a))     = Just a
+  where
+    getArg :: Segment a -> Maybe (Arg a)
+    getArg (Segment (Static _)) = Nothing
+    getArg (Segment (Cap    a)) = Just a
 
 getQueryArgs :: Req FlowTypeInfo -> [Arg FlowTypeInfo]
 getQueryArgs = fmap _queryArgName . view (reqUrl . queryStr)
 
 mkOptionsType :: Req FlowTypeInfo -> FlowTypeInfo
 mkOptionsType r = Fix . L1 . Object . fmap mkOptsField $ view (reqUrl . queryStr) r
-    where
-        mkOptsField :: QueryArg FlowTypeInfo -> PropertyF FlowTypeInfo
-        mkOptsField (QueryArg (Arg p ty) _argTy) = OptionalProperty (unPathSegment p) ty
+  where
+    mkOptsField :: QueryArg FlowTypeInfo -> PropertyF FlowTypeInfo
+    mkOptsField (QueryArg (Arg p ty) _argTy) = OptionalProperty (unPathSegment p) ty
 
 renderClientFunction :: CodeGen ()
 renderClientFunction = do
@@ -145,76 +145,74 @@ renderEndpointFunction r req = do
     renderReturnType
     braceBlock renderBody
     line $ "module.exports." <> funName <> " = " <> funName
-    where
-        -- Captures and request body
-        args :: [Arg FlowTypeInfo]
-        args = getCaptureArgs req <>
-            maybe [] (\t -> [Arg (PathSegment "data") t]) (req ^. reqBody)
+  where
+    -- Captures and request body
+    args :: [Arg FlowTypeInfo]
+    args = getCaptureArgs req
+        <> maybe [] (\t -> [Arg (PathSegment "data") t]) (req ^. reqBody)
 
-        -- Query parameters and query flags
-        qParams :: [Arg FlowTypeInfo]
-        qParams = getQueryArgs req
+    -- Query parameters and query flags
+    qParams :: [Arg FlowTypeInfo]
+    qParams = getQueryArgs req
 
-        renderReturnType :: CodeGen ()
-        renderReturnType =
-            let mkResponse t = Fix . L1 . Promise . Fix . L1
-                             $ Object [Property "status" primString, Property "data" t]
-             in tell . renderFlowTypeInComment r
-                     . mkResponse
-                     . fromMaybe (Fix . L1 $ Prim Void)
-                     $ _reqReturnType req
+    renderReturnType :: CodeGen ()
+    renderReturnType =
+        let mkResponse t = Fix . L1 . Promise . Fix . L1 $ Object
+                [Property "status" primString, Property "data" t]
+        in  tell
+                . renderFlowTypeInComment r
+                . mkResponse
+                . fromMaybe (Fix . L1 $ Prim Void)
+                $ _reqReturnType req
 
-        renderAllArgs :: CodeGen ()
-        renderAllArgs = do
-            line "client /* : any */,"
-            renderArgs True args
+    renderAllArgs :: CodeGen ()
+    renderAllArgs = do
+        line "client /* : any */,"
+        renderArgs True args
+        unless (null qParams) $ do
+            unless (null args) $ tell ","
+            line "opts /* : "
+            genFlowType . toReferenced $ mkOptionsType req
+            tell " */"
+
+    renderArgs :: Bool -> [Arg FlowTypeInfo] -> CodeGen ()
+    renderArgs _         []       = pure ()
+    renderArgs inComment (a : as) = do
+        if inComment then line $ renderArg r a else line $ renderArgNoComment r a
+        unless (null as) $ tell ","
+        renderArgs inComment as
+
+    renderBody :: CodeGen ()
+    renderBody = do
+        line "return client"
+        parenBlock . braceBlock $ do
+            line "url: ["
+            indented $ do
+                renderUrl $ req ^. reqUrl . path
+                line "].join('/'),"
+            line $ "method: '" <> (T.toLower . decodeUtf8 $ req ^. reqMethod) <> "'"
             unless (null qParams) $ do
-                unless (null args) $ tell ","
-                line "opts /* : "
-                genFlowType . toReferenced $ mkOptionsType req
-                tell " */"
+                tell ","
+                line "params: opts"
+            unless (null $ req ^. reqBody) $ do
+                tell ","
+                line "data: JSON.stringify(data)"
 
-        renderArgs :: Bool -> [Arg FlowTypeInfo] -> CodeGen ()
-        renderArgs _ []     = pure ()
-        renderArgs inComment (a:as) = do
-            if inComment
-                then line $ renderArg r a
-                else line $ renderArgNoComment r a
-            unless (null as) $ tell ","
-            renderArgs inComment as
+    renderUrl :: [Segment FlowTypeInfo] -> CodeGen ()
+    renderUrl [] = pure ()
+    renderUrl (Segment (Cap (Arg (PathSegment n) ty)) : ss) = do
+        let param = if isString ty then n else n <> ".toString()"
+        line $ "encodeURIComponent(" <> param <> ")"
+        unless (null ss) $ tell ","
+        renderUrl ss
+    renderUrl (Segment (Static (PathSegment s)) : ss) = do
+        line $ "'" <> s <> "'"
+        unless (null ss) $ tell ","
+        renderUrl ss
 
-        renderBody :: CodeGen ()
-        renderBody = do
-            line "return client"
-            parenBlock . braceBlock $ do
-                line "url: ["
-                indented $ do
-                    renderUrl $ req ^. reqUrl . path
-                    line "].join('/'),"
-                line $ "method: '" <> (T.toLower . decodeUtf8 $ req ^. reqMethod) <> "'"
-                unless (null qParams) $ do
-                    tell ","
-                    line "params: opts"
-                unless (null $ req ^. reqBody) $ do
-                    tell ","
-                    line "data: JSON.stringify(data)"
-
-        renderUrl :: [Segment FlowTypeInfo] -> CodeGen ()
-        renderUrl []     = pure ()
-        renderUrl (Segment (Cap (Arg (PathSegment n) ty)):ss) = do
-            let param = if isString ty then n else n <> ".toString()"
-            line $ "encodeURIComponent(" <> param <> ")"
-            unless (null ss) $ tell ","
-            renderUrl ss
-        renderUrl (Segment (Static (PathSegment s)):ss) = do
-            line $ "'" <> s <> "'"
-            unless (null ss) $ tell ","
-            renderUrl ss
-
-        isString :: FlowTypeInfo -> Bool
-        isString (Fix (L1 (Prim String))) = True
-        isString _                        = False
-
+    isString :: FlowTypeInfo -> Bool
+    isString (Fix (L1 (Prim String))) = True
+    isString _                        = False
 
 renderEndpoints :: Rendering -> [Req FlowTypeInfo] -> CodeGen ()
 renderEndpoints r endpoints = forM_ endpoints $ \endpoint -> do
@@ -239,39 +237,35 @@ renderTypeDefs endpoints = do
     tell "*/\n\n"
 
 renderTypeDef :: Text -> FlowTypeRef -> Text
-renderTypeDef tyName ty = "export type " <> tyName <> " = "
-    <> renderFlowTypeWithReferences ty
-
+renderTypeDef tyName ty =
+    "export type " <> tyName <> " = " <> renderFlowTypeWithReferences ty
 
 getAllTypes :: Req flowTy -> [flowTy]
 getAllTypes r = catMaybes (_reqBody r : _reqReturnType r : fromURL (_reqUrl r))
     <> fmap fromHeader (_reqHeaders r)
-    where
-        fromURL :: Url a -> [Maybe a]
-        fromURL (Url segments str) =
-            fmap fromSegment segments <> fmap (Just . fromArg . _queryArgName) str
+  where
+    fromURL :: Url a -> [Maybe a]
+    fromURL (Url segments str) =
+        fmap fromSegment segments <> fmap (Just . fromArg . _queryArgName) str
 
-        fromSegment :: Segment a -> Maybe a
-        fromSegment (Segment (Static _)) = Nothing
-        fromSegment (Segment (Cap arg))  = Just (fromArg arg)
+    fromSegment :: Segment a -> Maybe a
+    fromSegment (Segment (Static _  )) = Nothing
+    fromSegment (Segment (Cap    arg)) = Just (fromArg arg)
 
-        fromArg :: Arg a -> a
-        fromArg (Arg _name ty) = ty
+    fromArg :: Arg a -> a
+    fromArg (Arg _name ty) = ty
 
-        fromHeader :: HeaderArg a -> a
-        fromHeader = fromArg . _headerArg
-
+    fromHeader :: HeaderArg a -> a
+    fromHeader = fromArg . _headerArg
 
 ------------------------------------------------------------------------------------------
 --  Type CodeGen
 ------------------------------------------------------------------------------------------
 
-
 genTypeDef :: Text -> FlowTypeRef -> CodeGen ()
 genTypeDef tyName ty = do
     tell $ "export type " <> tyName <> " = "
     genFlowType ty
-
 
 genFlowType :: FlowTypeRef -> CodeGen ()
 genFlowType = para $ \case
@@ -279,20 +273,18 @@ genFlowType = para $ \case
     R1 r -> tell $ unRef r
 
 genFlowTypeF :: FlowTypeF (FlowTypeRef, CodeGen ()) -> CodeGen ()
-genFlowTypeF (Prim prim)       = tell $ renderPrimative prim
-genFlowTypeF (Nullable (ty, cg))
-    | needParensNull ty        = tell "?" *> genParens cg
-    | otherwise                = tell "?" *> cg
-genFlowTypeF (Array (ty, cg))
-    | needParensArray ty       = genParens cg *> tell "[]"
-    | otherwise                = cg           *> tell "[]"
-genFlowTypeF (Sum l)           = sequence_ $ intersperse (tell " | ") $ snd <$> l
-genFlowTypeF (Literal lit)     = tell $ showLiteral lit
+genFlowTypeF (Prim prim) = tell $ renderPrimative prim
+genFlowTypeF (Nullable (ty, cg)) | needParensNull ty = tell "?" *> genParens cg
+                                 | otherwise         = tell "?" *> cg
+genFlowTypeF (Array (ty, cg)) | needParensArray ty = genParens cg *> tell "[]"
+                              | otherwise          = cg *> tell "[]"
+genFlowTypeF (Sum     l      ) = sequence_ $ intersperse (tell " | ") $ snd <$> l
+genFlowTypeF (Literal lit    ) = tell $ showLiteral lit
 genFlowTypeF (Promise (_, cg)) = tell "Promise<" *> cg *> tell ">"
-genFlowTypeF (Object props)    = braceBlock . sequence_ $ props <&> \p ->
-    genProperty (snd <$> p)
-genFlowTypeF (ExactObject l)   = blockWith "{|" "|}" . sequence_ $ l <&> \(name, p) ->
-        line (name <> " : ") *> (snd p) *> tell ","
+genFlowTypeF (Object props) =
+    braceBlock . sequence_ $ props <&> \p -> genProperty (snd <$> p)
+genFlowTypeF (ExactObject l) = blockWith "{|" "|}" . sequence_ $ l <&> \(name, p) ->
+    line (name <> " : ") *> (snd p) *> tell ","
 
 -- expressions that need parens when under 'Nullable'
 needParensNull :: FlowTypeRef -> Bool
@@ -301,7 +293,7 @@ needParensNull _                  = False
 
 -- expressions that need parens when under 'Array'.
 needParensArray :: FlowTypeRef -> Bool
-needParensArray (Fix (L1 (Sum _)))      = True
+needParensArray (Fix (L1 (Sum      _))) = True
 needParensArray (Fix (L1 (Nullable _))) = True
 needParensArray _                       = False
 
@@ -309,6 +301,7 @@ genParens :: CodeGen a -> CodeGen a
 genParens cg = tell "(" *> cg <* tell ")"
 
 genProperty :: PropertyF (CodeGen ()) -> CodeGen ()
-genProperty (Property fieldName ty)    = line (fieldName <> ": ") *> ty *> tell ","
-genProperty (OptionalProperty key ty)  = line (key <> "?: ") *> ty *> tell ","
-genProperty (IndexerProperty keyTy ty) = line "[" *> keyTy *> tell "]: " *> ty *> tell ","
+genProperty (Property         fieldName ty) = line (fieldName <> ": ") *> ty *> tell ","
+genProperty (OptionalProperty key       ty) = line (key <> "?: ") *> ty *> tell ","
+genProperty (IndexerProperty keyTy ty) =
+    line "[" *> keyTy *> tell "]: " *> ty *> tell ","
